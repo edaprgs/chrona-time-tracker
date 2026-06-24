@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Chrona Time Tracker",
+  title: "Chrona",
   description: "Personal time tracker for contract work.",
 };
 
