@@ -20,7 +20,7 @@ export default function Nav() {
     <header className="sticky top-0 z-10 border-b bg-card/70 backdrop-blur print:hidden">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="text-lg font-semibold text-primary">
-          Nudgine Time Tracker
+          Chrona - Personal Time Tracker
         </Link>
 
         <nav className="flex gap-1">

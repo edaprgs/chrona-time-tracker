@@ -81,7 +81,7 @@ export default function SessionsTable() {
               <TableHead>Task</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Duration</TableHead>
-              <TableHead>PR</TableHead>
+              <TableHead>Pull Request</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>

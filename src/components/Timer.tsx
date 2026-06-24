@@ -79,7 +79,7 @@ export default function Timer() {
   // Browser tab title
   useEffect(() => {
     if (timerState.isRunning) {
-      document.title = `⏱ ${formatTime(displaySeconds)} — Nudgine`;
+      document.title = `${formatTime(displaySeconds)} - Nudgine`;
     } else {
       document.title = "Time Tracker";
     }

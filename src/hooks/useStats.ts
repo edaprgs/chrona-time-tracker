@@ -9,47 +9,102 @@ import {
   isToday,
   isThisWeek,
   differenceInCalendarDays,
+  startOfWeek,
+  addDays,
+  format,
+  isSameDay,
 } from "date-fns";
+
+export interface DailyBar {
+  day: string;   // "Mon", "Tue", …
+  date: string;  // "Jun 23"
+  hours: number;
+  isToday: boolean;
+}
 
 export function useStats() {
   const { sessions, loading } = useSessionsContext();
 
-  // Today's sessions
+  // ── Today ──────────────────────────────────────────────────────────────────
   const todayMinutes = sessions
-    .filter((session) => isToday(new Date(session.created_at)))
-    .reduce((sum, session) => sum + (session.duration_minutes || 0), 0);
+    .filter((s) => isToday(new Date(s.created_at)))
+    .reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
 
-  // Current week's sessions (Monday-start, so it lines up with the
-  // contract's "no more than 40 hours in any seven-day period" cap)
-  const weekMinutes = sessions
-    .filter((session) =>
-      isThisWeek(new Date(session.created_at), { weekStartsOn: WEEK_STARTS_ON })
-    )
-    .reduce((sum, session) => sum + (session.duration_minutes || 0), 0);
+  // ── This week (Mon-start) ──────────────────────────────────────────────────
+  const weekSessions = sessions.filter((s) =>
+    isThisWeek(new Date(s.created_at), { weekStartsOn: WEEK_STARTS_ON })
+  );
+  const weekMinutes = weekSessions.reduce(
+    (sum, s) => sum + (s.duration_minutes || 0),
+    0
+  );
 
-  // Last 14 days (matches the biweekly invoice cycle)
+  // ── Last 14 days ───────────────────────────────────────────────────────────
   const biweeklyMinutes = sessions
     .filter(
-      (session) =>
-        differenceInCalendarDays(new Date(), new Date(session.created_at)) <= 14
+      (s) => differenceInCalendarDays(new Date(), new Date(s.created_at)) <= 14
     )
-    .reduce((sum, session) => sum + (session.duration_minutes || 0), 0);
+    .reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
 
-  const todayHours = todayMinutes / 60;
-  const weeklyHours = weekMinutes / 60;
+  // ── Daily breakdown (Mon–Sun this week) ────────────────────────────────────
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON });
+  const dailyBreakdown: DailyBar[] = Array.from({ length: 7 }, (_, i) => {
+    const date = addDays(weekStart, i);
+    const minutes = sessions
+      .filter((s) => isSameDay(new Date(s.created_at), date))
+      .reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    return {
+      day: format(date, "EEE"),
+      date: format(date, "MMM d"),
+      hours: parseFloat((minutes / 60).toFixed(2)),
+      isToday: isToday(date),
+    };
+  });
+
+  // ── Streak (consecutive calendar days with ≥1 session, counting back from today) ──
+  let streak = 0;
+  let cursor = new Date();
+  // If no session today, start checking from yesterday
+  const workedToday = sessions.some((s) => isToday(new Date(s.created_at)));
+  if (!workedToday) cursor = addDays(cursor, -1);
+
+  for (let i = 0; i < 365; i++) {
+    const day = addDays(cursor, -i);
+    const worked = sessions.some((s) => isSameDay(new Date(s.created_at), day));
+    if (worked) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const todayHours    = todayMinutes / 60;
+  const weeklyHours   = weekMinutes / 60;
   const biweeklyHours = biweeklyMinutes / 60;
-
   const remainingHours = Math.max(0, WEEKLY_HOUR_CAP - weeklyHours);
-  const weeklyEarnings = weeklyHours * HOURLY_RATE_USD;
+  const weeklyEarnings   = weeklyHours * HOURLY_RATE_USD;
   const biweeklyEarnings = biweeklyHours * HOURLY_RATE_USD;
+
+  // Cap warning thresholds
+  const weeklyPct = (weeklyHours / WEEKLY_HOUR_CAP) * 100;
+  const capStatus: "safe" | "warning" | "danger" | "exceeded" =
+    weeklyPct >= 100 ? "exceeded"
+    : weeklyPct >= 90 ? "danger"
+    : weeklyPct >= 75 ? "warning"
+    : "safe";
 
   return {
     loading,
-    todayHours: todayHours.toFixed(1),
-    weeklyHours: weeklyHours.toFixed(1),
-    biweeklyHours: biweeklyHours.toFixed(1),
-    remainingHours: remainingHours.toFixed(1),
-    weeklyEarnings: weeklyEarnings.toFixed(2),
+    todayHours:       todayHours.toFixed(1),
+    weeklyHours:      weeklyHours.toFixed(1),
+    biweeklyHours:    biweeklyHours.toFixed(1),
+    remainingHours:   remainingHours.toFixed(1),
+    weeklyEarnings:   weeklyEarnings.toFixed(2),
     biweeklyEarnings: biweeklyEarnings.toFixed(2),
+    weeklyPct,
+    capStatus,
+    dailyBreakdown,
+    streak,
   };
 }

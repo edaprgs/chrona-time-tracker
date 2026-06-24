@@ -20,8 +20,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Time Tracker",
-  description: "Personal time tracker for contract work.",
+  title: "Chrona",
+  description: "A personal time tracker and invoicing dashboard built for managing my freelance work sessions.",
 };
 
 export default function RootLayout({
