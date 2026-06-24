@@ -23,20 +23,26 @@ interface Props {
   open: boolean;
   setOpen: (value: boolean) => void;
 
-  // Create mode: passed in by the Timer when a run is stopped.
+  // Timer mode
   durationSeconds?: number;
+  punchedInAt?: string; // ISO string of punch-in time
   resetTimer?: () => void;
 
-  // Edit mode: passed in by the Sessions table.
+  // Edit mode
   session?: Session;
+
+  // Manual entry mode
+  isManual?: boolean;
 }
 
 export default function SessionDialog({
   open,
   setOpen,
   durationSeconds,
+  punchedInAt,
   resetTimer,
   session,
+  isManual,
 }: Props) {
   const { refetch } = useSessionsContext();
   const isEditMode = Boolean(session);
@@ -45,10 +51,12 @@ export default function SessionDialog({
   const [description, setDescription] = useState("");
   const [githubPR, setGithubPR] = useState("");
   const [minutes, setMinutes] = useState(0);
+  const [manualDate, setManualDate] = useState("");
+  const [manualStart, setManualStart] = useState("");
+  const [manualEnd, setManualEnd] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Re-populate the form every time the dialog opens, for either mode.
   useEffect(() => {
     if (!open) return;
 
@@ -57,6 +65,14 @@ export default function SessionDialog({
       setDescription(session.description || "");
       setGithubPR(session.github_pr || "");
       setMinutes(session.duration_minutes);
+    } else if (isManual) {
+      setTask("");
+      setDescription("");
+      setGithubPR("");
+      setMinutes(0);
+      setManualDate(new Date().toISOString().split("T")[0]);
+      setManualStart("");
+      setManualEnd("");
     } else {
       setTask("");
       setDescription("");
@@ -65,7 +81,16 @@ export default function SessionDialog({
     }
 
     setError("");
-  }, [open, session, durationSeconds]);
+  }, [open, session, durationSeconds, isManual]);
+
+  // Auto-compute minutes from manual start/end times
+  useEffect(() => {
+    if (!isManual || !manualDate || !manualStart || !manualEnd) return;
+    const start = new Date(`${manualDate}T${manualStart}`);
+    const end = new Date(`${manualDate}T${manualEnd}`);
+    const diff = Math.round((end.getTime() - start.getTime()) / 60000);
+    if (diff > 0) setMinutes(diff);
+  }, [isManual, manualDate, manualStart, manualEnd]);
 
   async function saveSession() {
     if (!task.trim()) {
@@ -88,12 +113,37 @@ export default function SessionDialog({
         .eq("id", session.id);
 
       setLoading(false);
+      if (updateError) { setError(updateError.message); return; }
 
-      if (updateError) {
-        setError(updateError.message);
+    } else if (isManual) {
+      if (minutes <= 0) {
+        setError("Duration must be greater than 0");
+        setLoading(false);
         return;
       }
+
+      const startISO = manualDate && manualStart
+        ? new Date(`${manualDate}T${manualStart}`).toISOString()
+        : null;
+      const endISO = manualDate && manualEnd
+        ? new Date(`${manualDate}T${manualEnd}`).toISOString()
+        : null;
+
+      const { error: insertError } = await supabase.from("sessions").insert({
+        task,
+        description,
+        github_pr: githubPR,
+        duration_minutes: minutes,
+        date: manualDate || new Date().toISOString().split("T")[0],
+        start_time: startISO,
+        end_time: endISO,
+      });
+
+      setLoading(false);
+      if (insertError) { setError(insertError.message); return; }
+
     } else {
+      // Timer mode
       const now = new Date();
 
       const { error: insertError } = await supabase.from("sessions").insert({
@@ -102,16 +152,12 @@ export default function SessionDialog({
         github_pr: githubPR,
         duration_minutes: (durationSeconds || 0) / 60,
         date: now.toISOString().split("T")[0],
-        start_time: null,
+        start_time: punchedInAt ?? null,
         end_time: now.toISOString(),
       });
 
       setLoading(false);
-
-      if (insertError) {
-        setError(insertError.message);
-        return;
-      }
+      if (insertError) { setError(insertError.message); return; }
 
       resetTimer?.();
     }
@@ -120,14 +166,37 @@ export default function SessionDialog({
     refetch();
   }
 
+  const title = isEditMode
+    ? "Edit Session"
+    : isManual
+    ? "Add Session Manually"
+    : "Save Session";
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? "Edit Session" : "Save Session"}</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Punch-in/out summary (timer mode only) */}
+          {!isEditMode && !isManual && punchedInAt && (
+            <div className="rounded-lg bg-muted px-4 py-2 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Punched in: </span>
+              {new Date(punchedInAt).toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+              {" → "}
+              <span className="font-medium text-foreground">Out: </span>
+              {new Date().toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+          )}
+
           <div className="space-y-1">
             <Input
               placeholder="Task title"
@@ -153,11 +222,55 @@ export default function SessionDialog({
             />
           </div>
 
+          {/* Manual entry fields */}
+          {isManual && (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">Date</label>
+                <Input
+                  type="date"
+                  value={manualDate}
+                  onChange={(e) => setManualDate(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm text-muted-foreground">Start time</label>
+                  <Input
+                    type="time"
+                    value={manualStart}
+                    onChange={(e) => setManualStart(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm text-muted-foreground">End time</label>
+                  <Input
+                    type="time"
+                    value={manualEnd}
+                    onChange={(e) => setManualEnd(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">
+                  Duration (minutes) — auto-filled from times above
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={minutes}
+                  onChange={(e) => setMinutes(Number(e.target.value))}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Edit mode duration override */}
           {isEditMode && (
             <div className="space-y-1">
-              <label className="text-sm text-muted-foreground">
-                Duration (minutes)
-              </label>
+              <label className="text-sm text-muted-foreground">Duration (minutes)</label>
               <Input
                 type="number"
                 min={0}
