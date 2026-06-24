@@ -5,7 +5,9 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import Nav from "@/components/Nav";
+import Toaster from "@/components/Toaster";
 import { SessionsProvider } from "@/context/SessionsContext";
+import { ToastProvider } from "@/hooks/useToast";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -20,8 +22,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Chrona",
-  description: "A personal time tracker and invoicing dashboard built for managing my freelance work sessions.",
+  title: "Chrona Time Tracker",
+  description: "Personal time tracker for contract work.",
 };
 
 export default function RootLayout({
@@ -42,10 +44,13 @@ export default function RootLayout({
       )}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
-        <SessionsProvider>
-          <Nav />
-          {children}
-        </SessionsProvider>
+        <ToastProvider>
+          <SessionsProvider>
+            <Nav />
+            {children}
+            <Toaster />
+          </SessionsProvider>
+        </ToastProvider>
       </body>
     </html>
   );

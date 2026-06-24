@@ -2,31 +2,32 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import SessionDialog from "./SessionDialog";
-import { Play, Pause, Square, PlusCircle } from "lucide-react";
+import { Play, Pause, Square, PlusCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "nudgine_timer";
+const IDLE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
+const IDLE_CHECK_MS = 60 * 1000; // check every minute
 
 interface TimerState {
-  startedAt: number | null; // epoch ms when timer last started
-  accumulatedSeconds: number; // seconds banked before the last pause
+  startedAt: number | null;
+  accumulatedSeconds: number;
   isRunning: boolean;
-  punchedInAt: string | null; // ISO string of the very first punch-in
+  punchedInAt: string | null;
+  lastInteractionAt: number | null; // epoch ms of last user interaction
 }
 
 function loadState(): TimerState {
   if (typeof window === "undefined")
-    return { startedAt: null, accumulatedSeconds: 0, isRunning: false, punchedInAt: null };
-
+    return { startedAt: null, accumulatedSeconds: 0, isRunning: false, punchedInAt: null, lastInteractionAt: null };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-
-  return { startedAt: null, accumulatedSeconds: 0, isRunning: false, punchedInAt: null };
+  return { startedAt: null, accumulatedSeconds: 0, isRunning: false, punchedInAt: null, lastInteractionAt: null };
 }
 
 function saveState(state: TimerState) {
@@ -58,9 +59,33 @@ export default function Timer() {
   const [displaySeconds, setDisplaySeconds] = useState(() => computeSeconds(loadState()));
   const [openDialog, setOpenDialog] = useState(false);
   const [openManualDialog, setOpenManualDialog] = useState(false);
+  const [showIdleWarning, setShowIdleWarning] = useState(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const idleCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Tick every second when running
+  // Record user interaction (mousemove, keydown, click) to reset idle clock
+  const handleInteraction = useCallback(() => {
+    setTimerState((prev) => {
+      if (!prev.isRunning) return prev;
+      const next = { ...prev, lastInteractionAt: Date.now() };
+      saveState(next);
+      return next;
+    });
+    setShowIdleWarning(false);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", handleInteraction, { passive: true });
+    window.addEventListener("keydown", handleInteraction, { passive: true });
+    window.addEventListener("click", handleInteraction, { passive: true });
+    return () => {
+      window.removeEventListener("mousemove", handleInteraction);
+      window.removeEventListener("keydown", handleInteraction);
+      window.removeEventListener("click", handleInteraction);
+    };
+  }, [handleInteraction]);
+
+  // Tick
   useEffect(() => {
     if (timerState.isRunning) {
       tickRef.current = setInterval(() => {
@@ -70,19 +95,33 @@ export default function Timer() {
       if (tickRef.current) clearInterval(tickRef.current);
       setDisplaySeconds(computeSeconds(timerState));
     }
+    return () => { if (tickRef.current) clearInterval(tickRef.current); };
+  }, [timerState]);
 
-    return () => {
-      if (tickRef.current) clearInterval(tickRef.current);
-    };
+  // Idle detection — check every minute if running
+  useEffect(() => {
+    if (!timerState.isRunning) {
+      if (idleCheckRef.current) clearInterval(idleCheckRef.current);
+      setShowIdleWarning(false);
+      return;
+    }
+
+    idleCheckRef.current = setInterval(() => {
+      const lastActivity = timerState.lastInteractionAt ?? timerState.startedAt ?? Date.now();
+      const idleMs = Date.now() - lastActivity;
+      if (idleMs >= IDLE_THRESHOLD_MS) {
+        setShowIdleWarning(true);
+      }
+    }, IDLE_CHECK_MS);
+
+    return () => { if (idleCheckRef.current) clearInterval(idleCheckRef.current); };
   }, [timerState]);
 
   // Browser tab title
   useEffect(() => {
-    if (timerState.isRunning) {
-      document.title = `${formatTime(displaySeconds)} - Nudgine`;
-    } else {
-      document.title = "Time Tracker";
-    }
+    document.title = timerState.isRunning
+      ? `${formatTime(displaySeconds)} - Nudgine`
+      : "Time Tracker";
   }, [displaySeconds, timerState.isRunning]);
 
   function handleStart() {
@@ -92,9 +131,11 @@ export default function Timer() {
       accumulatedSeconds: timerState.accumulatedSeconds,
       isRunning: true,
       punchedInAt: timerState.punchedInAt ?? new Date(now).toISOString(),
+      lastInteractionAt: now,
     };
     saveState(next);
     setTimerState(next);
+    setShowIdleWarning(false);
   }
 
   function handlePause() {
@@ -103,24 +144,26 @@ export default function Timer() {
       accumulatedSeconds: computeSeconds(timerState),
       isRunning: false,
       punchedInAt: timerState.punchedInAt,
+      lastInteractionAt: Date.now(),
     };
     saveState(next);
     setTimerState(next);
+    setShowIdleWarning(false);
   }
 
   function handleStop() {
     if (displaySeconds === 0) return;
-
-    // Snapshot the accumulated time before pausing
     const next: TimerState = {
       startedAt: null,
       accumulatedSeconds: computeSeconds(timerState),
       isRunning: false,
       punchedInAt: timerState.punchedInAt,
+      lastInteractionAt: Date.now(),
     };
     saveState(next);
     setTimerState(next);
     setOpenDialog(true);
+    setShowIdleWarning(false);
   }
 
   function resetTimer() {
@@ -130,9 +173,11 @@ export default function Timer() {
       accumulatedSeconds: 0,
       isRunning: false,
       punchedInAt: null,
+      lastInteractionAt: null,
     };
     setTimerState(fresh);
     setDisplaySeconds(0);
+    setShowIdleWarning(false);
   }
 
   const punchInLabel = timerState.punchedInAt
@@ -147,7 +192,6 @@ export default function Timer() {
       <div className="space-y-4 text-center">
         <div className="flex items-center justify-center gap-2">
           <h2 className="text-xl font-semibold">Timer</h2>
-
           {timerState.isRunning && (
             <span className="flex items-center gap-1.5 text-xs font-medium text-primary">
               <span className="size-2 rounded-full bg-primary animate-pulse" />
@@ -167,13 +211,32 @@ export default function Timer() {
           </span>
         </div>
 
-        {/* Punch-in timestamp */}
         {punchInLabel && (
           <p className="text-xs text-muted-foreground">
             Punched in at <span className="font-medium text-foreground">{punchInLabel}</span>
           </p>
         )}
       </div>
+
+      {/* Idle warning banner */}
+      {showIdleWarning && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <div className="space-y-1">
+            <p className="font-medium">Timer still running - are you still working?</p>
+            <p className="text-xs opacity-80">
+              The timer has been running for 2+ hours with no detected activity. Pause or stop it if you stepped away.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowIdleWarning(false)}
+            className="ml-auto shrink-0 opacity-60 hover:opacity-100"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <div className="flex justify-center gap-3">
         <Button onClick={handleStart} disabled={timerState.isRunning} className="gap-2">
@@ -202,7 +265,6 @@ export default function Timer() {
         </Button>
       </div>
 
-      {/* Manual session entry */}
       <div className="flex justify-center">
         <Button
           variant="ghost"
@@ -215,7 +277,6 @@ export default function Timer() {
         </Button>
       </div>
 
-      {/* Save dialog — from timer */}
       <SessionDialog
         open={openDialog}
         setOpen={setOpenDialog}
@@ -224,7 +285,6 @@ export default function Timer() {
         resetTimer={resetTimer}
       />
 
-      {/* Save dialog — manual entry */}
       <SessionDialog
         open={openManualDialog}
         setOpen={setOpenManualDialog}
