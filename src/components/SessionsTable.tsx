@@ -78,17 +78,40 @@ export default function SessionsTable() {
     setPage(1);
   }
 
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
   async function handleDelete(id: string) {
-    const confirmed = window.confirm("Delete this session? This can't be undone.");
-    if (!confirmed) return;
+    if (pendingDeleteId !== id) {
+      setPendingDeleteId(id);
+
+      toast(
+        "Delete session? Click delete again within 3 seconds to confirm.",
+        "destructive"
+      );
+
+      setTimeout(() => {
+        setPendingDeleteId((prev) => (prev === id ? null : prev));
+      }, 3000);
+
+      return;
+    }
+
     setDeletingId(id);
-    const { error } = await supabase.from("sessions").delete().eq("id", id);
+
+    const { error } = await supabase
+      .from("sessions")
+      .delete()
+      .eq("id", id);
+
     setDeletingId(null);
+    setPendingDeleteId(null);
+
     if (error) {
       toast("Failed to delete session.", "destructive");
       return;
     }
-    toast("Session deleted.", "default");
+
+    toast("Session deleted.", "success");
     refetch();
   }
 
