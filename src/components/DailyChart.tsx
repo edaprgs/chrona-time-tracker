@@ -1,5 +1,3 @@
-/* src/components/DailyChart.tsx */
-
 "use client";
 
 import {
@@ -13,7 +11,9 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useStats } from "@/hooks/useStats";
-import { WEEKLY_HOUR_CAP } from "@/lib/constants";
+import { useWorkspace } from "@/context/WorkspaceContext";
+import { Card, CardContent } from "@/components/ui/card";
+import { BarChart2 } from "lucide-react";
 
 interface TooltipPayload {
   active?: boolean;
@@ -34,73 +34,76 @@ function CustomTooltip({ active, payload, label }: TooltipPayload) {
 
 export default function DailyChart() {
   const { dailyBreakdown } = useStats();
+  const { weeklyHourCap } = useWorkspace();
 
-  // Daily cap = 40h / 5 working days
-  const dailySoftCap = WEEKLY_HOUR_CAP / 5;
+  const dailySoftCap = weeklyHourCap / 5;
   const maxHours = Math.max(...dailyBreakdown.map((d) => d.hours), dailySoftCap + 1);
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold">This Week</h2>
-        <p className="text-xs text-muted-foreground">Daily breakdown</p>
-      </div>
-
-      <ResponsiveContainer width="100%" height={180}>
-        <BarChart
-          data={dailyBreakdown}
-          margin={{ top: 8, right: 4, left: -24, bottom: 0 }}
-          barCategoryGap="30%"
-        >
-          <XAxis
-            dataKey="day"
-            tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            domain={[0, Math.ceil(maxHours)]}
-            tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
-            axisLine={false}
-            tickLine={false}
-            tickFormatter={(v) => `${v}h`}
-          />
-          <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--color-accent)", opacity: 0.5 }} />
-
-          {/* Soft daily reference line (8h) */}
-          <ReferenceLine
-            y={dailySoftCap}
-            stroke="var(--color-border)"
-            strokeDasharray="4 3"
-            label={{ value: `${dailySoftCap}h`, fontSize: 10, fill: "var(--color-muted-foreground)", position: "right" }}
-          />
-
-          <Bar dataKey="hours" radius={[4, 4, 0, 0]} maxBarSize={48}>
-            {dailyBreakdown.map((entry) => (
-              <Cell
-                key={entry.day}
-                fill={
-                  entry.isToday
-                    ? "var(--color-primary)"
-                    : entry.hours > 0
-                    ? "var(--color-chart-2)"
-                    : "var(--color-border)"
-                }
-                fillOpacity={entry.hours === 0 ? 0.35 : 1}
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-
-      {/* Day labels with hours */}
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
-        {dailyBreakdown.map((d) => (
-          <div key={d.day} className={d.isToday ? "font-semibold text-primary" : ""}>
-            {d.hours > 0 ? `${d.hours}h` : "—"}
+    <Card className="h-full">
+      <CardContent className="p-6">
+        <div className="mb-5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex size-7 items-center justify-center rounded-lg bg-muted">
+              <BarChart2 className="size-3.5 text-muted-foreground" />
+            </div>
+            <h2 className="font-semibold">This Week</h2>
           </div>
-        ))}
-      </div>
-    </div>
+          <p className="text-xs text-muted-foreground">Daily hours breakdown</p>
+        </div>
+
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart
+            data={dailyBreakdown}
+            margin={{ top: 8, right: 8, left: -20, bottom: 0 }}
+            barCategoryGap="35%"
+          >
+            <XAxis
+              dataKey="day"
+              tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              domain={[0, Math.ceil(maxHours)]}
+              tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(v) => `${v}h`}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--color-accent)", opacity: 0.4 }} />
+            <ReferenceLine
+              y={dailySoftCap}
+              stroke="var(--color-border)"
+              strokeDasharray="4 3"
+              label={{ value: `${dailySoftCap}h`, fontSize: 10, fill: "var(--color-muted-foreground)", position: "right" }}
+            />
+            <Bar dataKey="hours" radius={[5, 5, 0, 0]} maxBarSize={44}>
+              {dailyBreakdown.map((entry) => (
+                <Cell
+                  key={entry.day}
+                  fill={
+                    entry.isToday
+                      ? "var(--color-primary)"
+                      : entry.hours > 0
+                      ? "var(--color-chart-2)"
+                      : "var(--color-border)"
+                  }
+                  fillOpacity={entry.hours === 0 ? 0.3 : 1}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+
+        <div className="mt-3 grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+          {dailyBreakdown.map((d) => (
+            <div key={d.day} className={d.isToday ? "font-semibold text-primary" : ""}>
+              {d.hours > 0 ? `${d.hours}h` : "—"}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

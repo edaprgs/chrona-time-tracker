@@ -1,25 +1,35 @@
-/* src/app/invoice/page.tsx */
-
 "use client";
 
 import { useState } from "react";
-import { startOfDay, subDays, addDays } from "date-fns";
-import { INVOICE_CYCLE_DAYS } from "@/lib/constants";
+import { startOfDay, subDays } from "date-fns";
+import { useWorkspace } from "@/context/WorkspaceContext";
 import InvoicePeriodPicker from "@/components/InvoicePeriodPicker";
 import InvoiceTable from "@/components/InvoiceTable";
 
-function defaultPeriod() {
-  // Most recent completed biweekly cycle ending yesterday
+export const CURRENCIES = [
+  { code: "USD", label: "USD — US Dollar",          symbol: "$"   },
+  { code: "PHP", label: "PHP — Philippine Peso",     symbol: "₱"   },
+  { code: "EUR", label: "EUR — Euro",                symbol: "€"   },
+  { code: "GBP", label: "GBP — British Pound",       symbol: "£"   },
+  { code: "AUD", label: "AUD — Australian Dollar",   symbol: "A$"  },
+  { code: "SGD", label: "SGD — Singapore Dollar",    symbol: "S$"  },
+  { code: "JPY", label: "JPY — Japanese Yen",        symbol: "¥"   },
+  { code: "CAD", label: "CAD — Canadian Dollar",     symbol: "CA$" },
+];
+
+function defaultPeriod(cycleDays: number) {
   const today = startOfDay(new Date());
-  const end = subDays(today, 1);
-  const start = subDays(end, INVOICE_CYCLE_DAYS - 1);
+  const end   = subDays(today, 1);
+  const start = subDays(end, cycleDays - 1);
   return { start, end };
 }
 
 export default function InvoicePage() {
-  const { start: defaultStart, end: defaultEnd } = defaultPeriod();
-  const [start, setStart] = useState(defaultStart);
-  const [end, setEnd] = useState(defaultEnd);
+  const { invoiceCycleDays } = useWorkspace();
+  const { start: defaultStart, end: defaultEnd } = defaultPeriod(invoiceCycleDays);
+  const [start, setStart]           = useState(defaultStart);
+  const [end, setEnd]               = useState(defaultEnd);
+  const [displayCurrency, setDisplayCurrency] = useState("USD");
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-6 py-10 print:px-0 print:py-4">
@@ -30,18 +40,30 @@ export default function InvoicePage() {
         </p>
       </div>
 
-      <div className="print:hidden">
-        <InvoicePeriodPicker
-          start={start}
-          end={end}
-          onChange={(s, e) => {
-            setStart(s);
-            setEnd(e);
-          }}
-        />
+      <div className="flex flex-wrap items-end gap-4 print:hidden">
+        <div className="flex-1">
+          <InvoicePeriodPicker
+            start={start}
+            end={end}
+            onChange={(s, e) => { setStart(s); setEnd(e); }}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Display currency</p>
+          <select
+            className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+            value={displayCurrency}
+            onChange={(e) => setDisplayCurrency(e.target.value)}
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>{c.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <InvoiceTable start={start} end={end} />
+      <InvoiceTable start={start} end={end} displayCurrency={displayCurrency} />
     </main>
   );
 }

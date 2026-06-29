@@ -1,33 +1,51 @@
-/* src/components/Timer.tsx */
-
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import SessionDialog from "./SessionDialog";
-import { Play, Pause, Square, PlusCircle, AlertTriangle } from "lucide-react";
+import PauseReasonDialog from "./PauseReasonDialog";
+import {
+  Play, Pause, Square, PlusCircle, Coffee,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { PauseEntry } from "@/types/activity";
+import { useWorkspace } from "@/context/WorkspaceContext";
+import { useToast } from "@/hooks/useToast";
 
-const STORAGE_KEY = "nudgine_timer";
-const IDLE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
-const IDLE_CHECK_MS = 60 * 1000; // check every minute
+const STORAGE_KEY = "chrona_timer";
+const IDLE_AUTO_PAUSE_MS = 30 * 60 * 1000; // auto-pause after 30 min idle
+const IDLE_CHECK_MS = 60 * 1000;
 
 interface TimerState {
   startedAt: number | null;
   accumulatedSeconds: number;
   isRunning: boolean;
   punchedInAt: string | null;
-  lastInteractionAt: number | null; // epoch ms of last user interaction
+  lastInteractionAt: number | null;
+  pauseLog: PauseEntry[];
+  currentPauseStartedAt: string | null;
 }
 
 function loadState(): TimerState {
-  if (typeof window === "undefined")
-    return { startedAt: null, accumulatedSeconds: 0, isRunning: false, punchedInAt: null, lastInteractionAt: null };
+  if (typeof window === "undefined") return emptyState();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { startedAt: null, accumulatedSeconds: 0, isRunning: false, punchedInAt: null, lastInteractionAt: null };
+  return emptyState();
+}
+
+function emptyState(): TimerState {
+  return {
+    startedAt: null,
+    accumulatedSeconds: 0,
+    isRunning: false,
+    punchedInAt: null,
+    lastInteractionAt: null,
+    pauseLog: [],
+    currentPauseStartedAt: null,
+  };
 }
 
 function saveState(state: TimerState) {
@@ -38,6 +56,11 @@ function clearState() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+function broadcastTimerEvent(type: "punch-in" | "pause" | "resume" | "punch-out") {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(`chrona:${type}`, { detail: { storageKey: STORAGE_KEY } }));
+}
+
 function computeSeconds(state: TimerState): number {
   if (state.isRunning && state.startedAt !== null) {
     return state.accumulatedSeconds + Math.floor((Date.now() - state.startedAt) / 1000);
@@ -46,24 +69,23 @@ function computeSeconds(state: TimerState): number {
 }
 
 function formatTime(totalSeconds: number) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const secs = totalSeconds % 60;
-  return `${hours.toString().padStart(2, "0")}:${minutes
-    .toString()
-    .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
 export default function Timer() {
+  const { workspaceName } = useWorkspace();
+  const { toast } = useToast();
   const [timerState, setTimerState] = useState<TimerState>(loadState);
   const [displaySeconds, setDisplaySeconds] = useState(() => computeSeconds(loadState()));
   const [openDialog, setOpenDialog] = useState(false);
   const [openManualDialog, setOpenManualDialog] = useState(false);
-  const [showIdleWarning, setShowIdleWarning] = useState(false);
+  const [showPauseDialog, setShowPauseDialog] = useState(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const idleCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Record user interaction (mousemove, keydown, click) to reset idle clock
   const handleInteraction = useCallback(() => {
     setTimerState((prev) => {
       if (!prev.isRunning) return prev;
@@ -71,7 +93,6 @@ export default function Timer() {
       saveState(next);
       return next;
     });
-    setShowIdleWarning(false);
   }, []);
 
   useEffect(() => {
@@ -85,12 +106,9 @@ export default function Timer() {
     };
   }, [handleInteraction]);
 
-  // Tick
   useEffect(() => {
     if (timerState.isRunning) {
-      tickRef.current = setInterval(() => {
-        setDisplaySeconds(computeSeconds(timerState));
-      }, 1000);
+      tickRef.current = setInterval(() => setDisplaySeconds(computeSeconds(timerState)), 1000);
     } else {
       if (tickRef.current) clearInterval(tickRef.current);
       setDisplaySeconds(computeSeconds(timerState));
@@ -98,190 +116,342 @@ export default function Timer() {
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
   }, [timerState]);
 
-  // Idle detection — check every minute if running
   useEffect(() => {
     if (!timerState.isRunning) {
       if (idleCheckRef.current) clearInterval(idleCheckRef.current);
-      setShowIdleWarning(false);
       return;
     }
-
     idleCheckRef.current = setInterval(() => {
       const lastActivity = timerState.lastInteractionAt ?? timerState.startedAt ?? Date.now();
       const idleMs = Date.now() - lastActivity;
-      if (idleMs >= IDLE_THRESHOLD_MS) {
-        setShowIdleWarning(true);
+      if (idleMs >= IDLE_AUTO_PAUSE_MS) {
+        const idleMin = Math.round(idleMs / 60000);
+        const reason = `Auto-paused: ${idleMin}min idle`;
+        const now = new Date().toISOString();
+        const newEntry: PauseEntry = { pausedAt: now, resumedAt: null, reason };
+        setTimerState((prev) => {
+          if (!prev.isRunning) return prev;
+          const next: TimerState = {
+            startedAt: null,
+            accumulatedSeconds: computeSeconds(prev),
+            isRunning: false,
+            punchedInAt: prev.punchedInAt,
+            lastInteractionAt: Date.now(),
+            pauseLog: [...prev.pauseLog, newEntry],
+            currentPauseStartedAt: now,
+          };
+          saveState(next);
+          return next;
+        });
+        toast(`Timer auto-paused — no activity for ${idleMin} min. Resume when you're back.`, "destructive");
+        broadcastTimerEvent("pause");
       }
     }, IDLE_CHECK_MS);
-
     return () => { if (idleCheckRef.current) clearInterval(idleCheckRef.current); };
-  }, [timerState]);
+  }, [timerState, toast]);
 
-  // Browser tab title
   useEffect(() => {
     document.title = timerState.isRunning
-      ? `${formatTime(displaySeconds)} - Nudgine`
-      : "Time Tracker";
-  }, [displaySeconds, timerState.isRunning]);
+      ? `${formatTime(displaySeconds)} · ${workspaceName}`
+      : "Chrona";
+  }, [displaySeconds, timerState.isRunning, workspaceName]);
 
   function handleStart() {
     const now = Date.now();
+    const isFirstStart = !timerState.punchedInAt;
     const next: TimerState = {
+      ...timerState,
       startedAt: now,
-      accumulatedSeconds: timerState.accumulatedSeconds,
       isRunning: true,
       punchedInAt: timerState.punchedInAt ?? new Date(now).toISOString(),
       lastInteractionAt: now,
+      pauseLog: timerState.currentPauseStartedAt
+        ? [
+            ...timerState.pauseLog.slice(0, -1),
+            { ...timerState.pauseLog[timerState.pauseLog.length - 1], resumedAt: new Date(now).toISOString() },
+          ]
+        : timerState.pauseLog,
+      currentPauseStartedAt: null,
     };
     saveState(next);
     setTimerState(next);
-    setShowIdleWarning(false);
+    broadcastTimerEvent(isFirstStart ? "punch-in" : "resume");
   }
 
-  function handlePause() {
+  function handlePauseRequest() {
+    setShowPauseDialog(true);
+  }
+
+  function handlePauseConfirmed(reason: string) {
+    const now = new Date().toISOString();
+    const newEntry: PauseEntry = { pausedAt: now, resumedAt: null, reason };
     const next: TimerState = {
       startedAt: null,
       accumulatedSeconds: computeSeconds(timerState),
       isRunning: false,
       punchedInAt: timerState.punchedInAt,
       lastInteractionAt: Date.now(),
+      pauseLog: [...timerState.pauseLog, newEntry],
+      currentPauseStartedAt: now,
     };
     saveState(next);
     setTimerState(next);
-    setShowIdleWarning(false);
+    setShowPauseDialog(false);
+    broadcastTimerEvent("pause");
   }
 
   function handleStop() {
     if (displaySeconds === 0) return;
     const next: TimerState = {
+      ...timerState,
       startedAt: null,
       accumulatedSeconds: computeSeconds(timerState),
       isRunning: false,
-      punchedInAt: timerState.punchedInAt,
       lastInteractionAt: Date.now(),
     };
     saveState(next);
     setTimerState(next);
     setOpenDialog(true);
-    setShowIdleWarning(false);
+    broadcastTimerEvent("punch-out");
   }
 
   function resetTimer() {
     clearState();
-    const fresh: TimerState = {
-      startedAt: null,
-      accumulatedSeconds: 0,
-      isRunning: false,
-      punchedInAt: null,
-      lastInteractionAt: null,
-    };
+    const fresh = emptyState();
     setTimerState(fresh);
     setDisplaySeconds(0);
-    setShowIdleWarning(false);
   }
 
   const punchInLabel = timerState.punchedInAt
-    ? new Date(timerState.punchedInAt).toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+    ? new Date(timerState.punchedInAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
     : null;
 
-  return (
-    <div className="space-y-6">
-      <div className="space-y-4 text-center">
-        <div className="flex items-center justify-center gap-2">
-          <h2 className="text-xl font-semibold">Timer</h2>
-          {timerState.isRunning && (
-            <span className="flex items-center gap-1.5 text-xs font-medium text-primary">
-              <span className="size-2 rounded-full bg-primary animate-pulse" />
-              Recording
-            </span>
-          )}
-        </div>
+  const pauseCount = timerState.pauseLog.length;
+  const isIdle = !timerState.isRunning && !timerState.punchedInAt;
+  const isPaused = !timerState.isRunning && !!timerState.punchedInAt;
+  const isRecording = timerState.isRunning;
 
+  return (
+    <>
+      <Card
+        className={cn(
+          "relative overflow-hidden border-2 transition-colors duration-500",
+          isRecording
+            ? "border-primary/40 bg-primary/[0.03]"
+            : isPaused
+            ? "border-amber-400/40 bg-amber-50/40 dark:bg-amber-950/10"
+            : "border-border"
+        )}
+      >
+        {/* Subtle top accent bar */}
         <div
           className={cn(
-            "mx-auto flex h-48 w-48 items-center justify-center rounded-full border-4",
-            timerState.isRunning ? "border-primary" : "border-border"
+            "absolute inset-x-0 top-0 h-0.5 transition-colors duration-500",
+            isRecording ? "bg-primary" : isPaused ? "bg-amber-400" : "bg-transparent"
           )}
-        >
-          <span className="text-4xl font-bold tabular-nums text-primary">
-            {formatTime(displaySeconds)}
-          </span>
-        </div>
+        />
 
-        {punchInLabel && (
-          <p className="text-xs text-muted-foreground">
-            Punched in at <span className="font-medium text-foreground">{punchInLabel}</span>
-          </p>
-        )}
-      </div>
+        <CardContent className="px-8 py-7">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
 
-      {/* Idle warning banner */}
-      {showIdleWarning && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          <div className="space-y-1">
-            <p className="font-medium">Timer still running - are you still working?</p>
-            <p className="text-xs opacity-80">
-              The timer has been running for 2+ hours with no detected activity. Pause or stop it if you stepped away.
-            </p>
+            {/* Left — time display + status */}
+            <div className="flex items-center gap-6">
+              {/* Animated clock face */}
+              <div className="relative shrink-0">
+                {isRecording && (
+                  <span className="absolute inset-0 rounded-2xl animate-ping bg-primary/15 duration-1000" />
+                )}
+                <svg
+                  viewBox="0 0 32 32"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="size-20 drop-shadow-sm"
+                >
+                  <style>{`
+                    .clock-bg-rec   { fill: #ec4899; }
+                    .clock-bg-pause { fill: #f59e0b; }
+                    .clock-bg-idle  { fill: #e2e8f0; }
+                    .clock-hand-min {
+                      transform-origin: 16px 20px;
+                      animation: clockSweepMin 3600s linear infinite;
+                    }
+                    .clock-hand-sec {
+                      transform-origin: 16px 20px;
+                      animation: clockTickSec 60s steps(60, end) infinite;
+                    }
+                    .clock-hand-sec-paused {
+                      transform-origin: 16px 20px;
+                      animation: none;
+                    }
+                    .clock-center-pulse {
+                      animation: clockCenterPulse 1s ease-in-out infinite;
+                    }
+                    @keyframes clockSweepMin {
+                      from { transform: rotate(0deg); }
+                      to   { transform: rotate(360deg); }
+                    }
+                    @keyframes clockTickSec {
+                      from { transform: rotate(0deg); }
+                      to   { transform: rotate(360deg); }
+                    }
+                    @keyframes clockCenterPulse {
+                      0%, 100% { opacity: 1; r: 1.2; }
+                      50%      { opacity: 0.6; r: 1.6; }
+                    }
+                  `}</style>
+
+                  {/* Background */}
+                  <rect
+                    width="32" height="32" rx="7"
+                    className={isRecording ? "clock-bg-rec" : isPaused ? "clock-bg-pause" : "clock-bg-idle"}
+                  />
+                  <rect width="32" height="32" rx="7" fill="white" fillOpacity="0.1" />
+
+                  {/* Crown bar */}
+                  <path d="M11 6h10" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                  {/* Stem */}
+                  <path d="M16 6v3" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                  {/* Side button */}
+                  <path d="M23 14l1.4-1.4" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+
+                  {/* Clock body */}
+                  <circle cx="16" cy="20" r="8.5" fill="white" fillOpacity="0.15" stroke="white" strokeWidth="1.8" />
+
+                  {/* Minute hand */}
+                  <g className="clock-hand-min">
+                    <line x1="16" y1="20" x2="16" y2="13.5" stroke="white" strokeWidth="1.6" strokeLinecap="round" />
+                  </g>
+
+                  {/* Second hand — only animates when recording */}
+                  <g className={isRecording ? "clock-hand-sec" : "clock-hand-sec-paused"}>
+                    <line
+                      x1="16" y1="20" x2="20.5" y2="16"
+                      stroke="white" strokeWidth="1" strokeLinecap="round"
+                      opacity={isIdle ? 0.3 : 0.9}
+                    />
+                  </g>
+
+                  {/* Center dot */}
+                  <circle cx="16" cy="20" r="1.2" fill="white" className={isRecording ? "clock-center-pulse" : ""} />
+                </svg>
+              </div>
+
+              {/* Time + meta */}
+              <div className="space-y-1">
+                {/* Status chip */}
+                <div className="flex items-center gap-2">
+                  {isRecording && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                      <span className="size-1.5 rounded-full bg-primary animate-pulse" />
+                      Recording
+                    </span>
+                  )}
+                  {isPaused && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                      <Coffee className="size-3" />
+                      Paused
+                    </span>
+                  )}
+                  {isIdle && (
+                    <span className="text-xs font-medium text-muted-foreground">Ready to start</span>
+                  )}
+                </div>
+
+                {/* Big time */}
+                <p
+                  className={cn(
+                    "font-mono text-5xl font-bold tabular-nums leading-none tracking-tight",
+                    isRecording ? "text-primary" : isPaused ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+                  )}
+                >
+                  {formatTime(displaySeconds)}
+                </p>
+
+                {/* Context pills */}
+                <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                  {punchInLabel && (
+                    <span className="text-xs text-muted-foreground">
+                      Punched in <span className="font-medium text-foreground">{punchInLabel}</span>
+                    </span>
+                  )}
+                  {pauseCount > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      <Coffee className="size-3" />
+                      {pauseCount} pause{pauseCount !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {displaySeconds > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      {(displaySeconds / 3600).toFixed(2)}h elapsed
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right — actions */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  size="lg"
+                  onClick={handleStart}
+                  disabled={isRecording}
+                  className="gap-2 px-6"
+                >
+                  <Play className="size-4" />
+                  {timerState.punchedInAt ? "Resume" : "Punch In"}
+                </Button>
+
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  onClick={handlePauseRequest}
+                  disabled={!isRecording}
+                  className="gap-2"
+                >
+                  <Pause className="size-4" />
+                  Pause
+                </Button>
+
+                <Button
+                  size="lg"
+                  variant={isPaused ? "default" : "outline"}
+                  onClick={handleStop}
+                  disabled={displaySeconds === 0}
+                  className={cn("gap-2", isPaused && "border-destructive/30 bg-destructive text-destructive-foreground hover:bg-destructive/90")}
+                >
+                  <Square className="size-4" />
+                  Punch Out
+                </Button>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2 justify-start text-muted-foreground text-xs"
+                onClick={() => setOpenManualDialog(true)}
+              >
+                <PlusCircle className="size-3.5" />
+                Add session manually
+              </Button>
+            </div>
           </div>
-          <button
-            onClick={() => setShowIdleWarning(false)}
-            className="ml-auto shrink-0 opacity-60 hover:opacity-100"
-            aria-label="Dismiss"
-          >
-            ×
-          </button>
-        </div>
-      )}
 
-      <div className="flex justify-center gap-3">
-        <Button onClick={handleStart} disabled={timerState.isRunning} className="gap-2">
-          <Play className="size-4" />
-          {timerState.punchedInAt ? "Resume" : "Punch In"}
-        </Button>
+        </CardContent>
+      </Card>
 
-        <Button
-          variant="secondary"
-          onClick={handlePause}
-          disabled={!timerState.isRunning}
-          className="gap-2"
-        >
-          <Pause className="size-4" />
-          Pause
-        </Button>
-
-        <Button
-          variant="destructive"
-          onClick={handleStop}
-          disabled={displaySeconds === 0}
-          className="gap-2"
-        >
-          <Square className="size-4" />
-          Punch Out
-        </Button>
-      </div>
-
-      <div className="flex justify-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-2 text-muted-foreground"
-          onClick={() => setOpenManualDialog(true)}
-        >
-          <PlusCircle className="size-4" />
-          Add session manually
-        </Button>
-      </div>
+      <PauseReasonDialog
+        open={showPauseDialog}
+        onConfirm={handlePauseConfirmed}
+        onCancel={() => setShowPauseDialog(false)}
+      />
 
       <SessionDialog
         open={openDialog}
         setOpen={setOpenDialog}
         durationSeconds={displaySeconds}
         punchedInAt={timerState.punchedInAt ?? undefined}
+        pauseLog={timerState.pauseLog}
         resetTimer={resetTimer}
       />
 
@@ -291,6 +461,6 @@ export default function Timer() {
         isManual
         resetTimer={() => {}}
       />
-    </div>
+    </>
   );
 }

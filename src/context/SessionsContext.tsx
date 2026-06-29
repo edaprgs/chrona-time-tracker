@@ -1,5 +1,3 @@
-/* src/context/SessionsContext.tsx */
-
 "use client";
 
 import {
@@ -10,46 +8,97 @@ import {
   useState,
   type ReactNode,
 } from "react";
-
 import { supabase } from "@/lib/supabase";
-import { Session } from "@/types/session";
+import { useAuth } from "@/context/AuthContext";
+import { useWorkspace } from "@/context/WorkspaceContext";
+import type { Session } from "@/types/session";
+import type { PauseEntry } from "@/types/activity";
 
 interface SessionsContextValue {
   sessions: Session[];
   loading: boolean;
   refetch: () => Promise<void>;
+  createSession: (payload: SessionInsertPayload, pauseLogs?: PauseEntry[]) => Promise<Session | null>;
+  updateSession: (id: string, patch: Partial<Session>) => Promise<void>;
+  deleteSession: (id: string) => Promise<void>;
 }
 
-const SessionsContext = createContext<SessionsContextValue | undefined>(
-  undefined
-);
+export interface SessionInsertPayload {
+  task: string;
+  description: string;
+  github_pr: string;
+  duration_minutes: number;
+  date: string;
+  start_time: string | null;
+  end_time: string | null;
+  pr_status?: string;
+  parent_session_id?: string | null;
+  is_split?: boolean;
+  focus_score?: number | null;
+}
+
+const SessionsContext = createContext<SessionsContextValue | undefined>(undefined);
 
 export function SessionsProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const { active: activeWorkspace } = useWorkspace();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refetch = useCallback(async () => {
+    if (!user || !activeWorkspace) { setSessions([]); setLoading(false); return; }
     setLoading(true);
-
     const { data, error } = await supabase
       .from("sessions")
       .select("*")
+      .eq("user_id", user.id)
+      .eq("workspace_id", activeWorkspace.id)
       .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error(error);
-    }
-
+    if (error) console.error(error);
     setSessions(data || []);
     setLoading(false);
-  }, []);
+  }, [user, activeWorkspace]);
 
-  useEffect(() => {
-    refetch();
-  }, [refetch]);
+  useEffect(() => { refetch(); }, [refetch]);
+
+  async function createSession(payload: SessionInsertPayload, pauseLogs?: PauseEntry[]) {
+    if (!user || !activeWorkspace) return null;
+    const { data, error } = await supabase
+      .from("sessions")
+      .insert({ ...payload, user_id: user.id, workspace_id: activeWorkspace.id, pr_status: payload.pr_status ?? "open" })
+      .select()
+      .single();
+    if (error || !data) { console.error(error); return null; }
+
+    if (pauseLogs && pauseLogs.length > 0) {
+      await supabase.from("pause_logs").insert(
+        pauseLogs.map((p) => ({
+          session_id: data.id,
+          paused_at: p.pausedAt,
+          resumed_at: p.resumedAt,
+          reason: p.reason || null,
+        }))
+      );
+    }
+
+    await refetch();
+    return data as Session;
+  }
+
+  async function updateSession(id: string, patch: Partial<Session>) {
+    if (!user) return;
+    await supabase.from("sessions").update(patch).eq("id", id).eq("user_id", user.id);
+    await refetch();
+  }
+
+  async function deleteSession(id: string) {
+    if (!user) return;
+    await supabase.from("sessions").delete().eq("id", id).eq("user_id", user.id);
+    await refetch();
+  }
 
   return (
-    <SessionsContext.Provider value={{ sessions, loading, refetch }}>
+    <SessionsContext.Provider value={{ sessions, loading, refetch, createSession, updateSession, deleteSession }}>
       {children}
     </SessionsContext.Provider>
   );
@@ -57,10 +106,6 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
 
 export function useSessionsContext() {
   const ctx = useContext(SessionsContext);
-
-  if (!ctx) {
-    throw new Error("useSessionsContext must be used inside <SessionsProvider>");
-  }
-
+  if (!ctx) throw new Error("useSessionsContext must be used inside <SessionsProvider>");
   return ctx;
 }

@@ -1,18 +1,14 @@
-/* src/components/SessionsTable.tsx */
-
 "use client";
 
 import { useMemo, useState } from "react";
-import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from "date-fns";
-
+import { format, parseISO, startOfDay, endOfDay } from "date-fns";
 import { useSessionsContext } from "@/context/SessionsContext";
 import { useToast } from "@/hooks/useToast";
-import { supabase } from "@/lib/supabase";
-import { Session } from "@/types/session";
+import type { Session, PrStatus } from "@/types/session";
+import { formatDuration } from "@/lib/session-utils";
 
 import {
-  Table, TableHeader, TableRow, TableHead,
-  TableBody, TableCell,
+  Table, TableHeader, TableRow, TableHead, TableBody, TableCell,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,150 +17,96 @@ import {
   Pencil, Trash2, Globe, Loader2,
   ArrowUpDown, ArrowUp, ArrowDown,
   Search, X, ChevronLeft, ChevronRight,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── helpers ────────────────────────────────────────────────────────────────
-
-function formatDuration(totalMinutes: number) {
-  const h = Math.floor(totalMinutes / 60);
-  const m = Math.round(totalMinutes % 60);
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
-}
-
 type SortKey = "date" | "task" | "duration";
 type SortDir = "asc" | "desc";
-
 const PAGE_SIZE = 15;
 
-// ── component ──────────────────────────────────────────────────────────────
+const PR_STATUS_CONFIG: Record<PrStatus, { label: string; className: string }> = {
+  open:      { label: "Open",       className: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300" },
+  in_review: { label: "In Review",  className: "border-blue-300 bg-blue-100 text-blue-700 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
+  approved:  { label: "Approved",   className: "border-green-300 bg-green-100 text-green-700 dark:border-green-700 dark:bg-green-900/40 dark:text-green-300" },
+  merged:    { label: "Merged",     className: "border-purple-300 bg-purple-100 text-purple-700 dark:border-purple-700 dark:bg-purple-900/40 dark:text-purple-300" },
+  done:      { label: "Done ✓",     className: "border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+};
+
+const PR_STATUS_CYCLE: PrStatus[] = ["open", "in_review", "approved", "merged", "done"];
 
 export default function SessionsTable() {
-  const { sessions, loading, refetch } = useSessionsContext();
+  const { sessions, loading, updateSession, deleteSession } = useSessionsContext();
   const { toast } = useToast();
 
-  // Editing / deleting
   const [editingSession, setEditingSession] = useState<Session | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId]         = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [updatingPrId, setUpdatingPrId]     = useState<string | null>(null);
 
-  // Filters
-  const [search, setSearch] = useState("");
+  const [search, setSearch]     = useState("");
   const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateTo, setDateTo]     = useState("");
+  const [prFilter, setPrFilter] = useState<PrStatus | "">("");
 
-  // Sorting
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-
-  // Pagination
-  const [page, setPage] = useState(1);
+  const [page, setPage]       = useState(1);
 
   function handleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("desc");
-    }
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("desc"); }
     setPage(1);
   }
 
   function clearFilters() {
-    setSearch("");
-    setDateFrom("");
-    setDateTo("");
-    setPage(1);
+    setSearch(""); setDateFrom(""); setDateTo(""); setPrFilter(""); setPage(1);
   }
-
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   async function handleDelete(id: string) {
     if (pendingDeleteId !== id) {
       setPendingDeleteId(id);
-
-      toast(
-        "Delete session? Click delete again within 3 seconds to confirm.",
-        "destructive"
-      );
-
-      setTimeout(() => {
-        setPendingDeleteId((prev) => (prev === id ? null : prev));
-      }, 3000);
-
+      toast("Click delete again within 3s to confirm.", "destructive");
+      setTimeout(() => setPendingDeleteId((p) => (p === id ? null : p)), 3000);
       return;
     }
-
     setDeletingId(id);
-
-    const { error } = await supabase
-      .from("sessions")
-      .delete()
-      .eq("id", id);
-
+    await deleteSession(id);
     setDeletingId(null);
     setPendingDeleteId(null);
-
-    if (error) {
-      toast("Failed to delete session.", "destructive");
-      return;
-    }
-
     toast("Session deleted.", "success");
-    refetch();
   }
 
-  // ── filtering ─────────────────────────────────────────────────────────────
+  async function cyclePrStatus(session: Session) {
+    if (!session.github_pr) return;
+    const idx  = PR_STATUS_CYCLE.indexOf(session.pr_status ?? "open");
+    const next = PR_STATUS_CYCLE[(idx + 1) % PR_STATUS_CYCLE.length];
+    setUpdatingPrId(session.id);
+    await updateSession(session.id, { pr_status: next });
+    setUpdatingPrId(null);
+  }
 
-  const filtered = useMemo(() => {
-    return sessions.filter((s) => {
-      const sessionDate = new Date(s.created_at);
+  const filtered = useMemo(() => sessions.filter((s) => {
+    if (search && !s.task.toLowerCase().includes(search.toLowerCase()) &&
+        !(s.description ?? "").toLowerCase().includes(search.toLowerCase())) return false;
+    if (dateFrom && new Date(s.date) < startOfDay(parseISO(dateFrom))) return false;
+    if (dateTo   && new Date(s.date) > endOfDay(parseISO(dateTo)))     return false;
+    if (prFilter && s.pr_status !== prFilter) return false;
+    return true;
+  }), [sessions, search, dateFrom, dateTo, prFilter]);
 
-      if (search && !s.task.toLowerCase().includes(search.toLowerCase()) &&
-          !(s.description ?? "").toLowerCase().includes(search.toLowerCase())) {
-        return false;
-      }
-
-      if (dateFrom) {
-        const from = startOfDay(parseISO(dateFrom));
-        if (sessionDate < from) return false;
-      }
-
-      if (dateTo) {
-        const to = endOfDay(parseISO(dateTo));
-        if (sessionDate > to) return false;
-      }
-
-      return true;
-    });
-  }, [sessions, search, dateFrom, dateTo]);
-
-  // ── sorting ───────────────────────────────────────────────────────────────
-
-  const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === "date") {
-        cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      } else if (sortKey === "task") {
-        cmp = a.task.localeCompare(b.task);
-      } else if (sortKey === "duration") {
-        cmp = a.duration_minutes - b.duration_minutes;
-      }
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-  }, [filtered, sortKey, sortDir]);
-
-  // ── pagination ────────────────────────────────────────────────────────────
+  const sorted = useMemo(() => [...filtered].sort((a, b) => {
+    let cmp = 0;
+    if (sortKey === "date")     cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
+    else if (sortKey === "task")     cmp = a.task.localeCompare(b.task);
+    else if (sortKey === "duration") cmp = Number(a.duration_minutes) - Number(b.duration_minutes);
+    return sortDir === "asc" ? cmp : -cmp;
+  }), [filtered, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const paginated = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  const hasFilters = search || dateFrom || dateTo;
-
-  // ── sort icon helper ──────────────────────────────────────────────────────
+  const safePage   = Math.min(page, totalPages);
+  const paginated  = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const hasFilters = search || dateFrom || dateTo || prFilter;
 
   function SortIcon({ col }: { col: SortKey }) {
     if (sortKey !== col) return <ArrowUpDown className="ml-1 inline size-3 opacity-40" />;
@@ -172,8 +114,6 @@ export default function SessionsTable() {
       ? <ArrowUp className="ml-1 inline size-3 text-primary" />
       : <ArrowDown className="ml-1 inline size-3 text-primary" />;
   }
-
-  // ── render ────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -186,9 +126,8 @@ export default function SessionsTable() {
 
   return (
     <>
-      {/* ── Filters bar ── */}
+      {/* Filters */}
       <div className="flex flex-wrap items-end gap-3">
-        {/* Search */}
         <div className="relative min-w-48 flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -199,38 +138,41 @@ export default function SessionsTable() {
           />
         </div>
 
-        {/* Date range */}
         <div className="flex items-center gap-2">
           <div className="space-y-0.5">
             <p className="text-xs text-muted-foreground">From</p>
-            <Input
-              type="date"
-              className="w-36"
-              value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-            />
+            <Input type="date" className="w-36" value={dateFrom}
+              onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
           </div>
           <span className="mt-4 text-muted-foreground">→</span>
           <div className="space-y-0.5">
             <p className="text-xs text-muted-foreground">To</p>
-            <Input
-              type="date"
-              className="w-36"
-              value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-            />
+            <Input type="date" className="w-36" value={dateTo}
+              onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
           </div>
+        </div>
+
+        <div className="space-y-0.5">
+          <p className="text-xs text-muted-foreground">PR Status</p>
+          <select
+            className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+            value={prFilter}
+            onChange={(e) => { setPrFilter(e.target.value as PrStatus | ""); setPage(1); }}
+          >
+            <option value="">All</option>
+            {PR_STATUS_CYCLE.map((s) => (
+              <option key={s} value={s}>{PR_STATUS_CONFIG[s].label}</option>
+            ))}
+          </select>
         </div>
 
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground">
-            <X className="size-3.5" />
-            Clear
+            <X className="size-3.5" /> Clear
           </Button>
         )}
       </div>
 
-      {/* ── Result summary ── */}
       <p className="text-sm text-muted-foreground">
         {filtered.length === sessions.length
           ? `${sessions.length} session${sessions.length !== 1 ? "s" : ""}`
@@ -250,30 +192,22 @@ export default function SessionsTable() {
               <TableHeader>
                 <TableRow>
                   <TableHead>
-                    <button
-                      onClick={() => handleSort("date")}
-                      className="flex items-center font-medium hover:text-foreground"
-                    >
+                    <button onClick={() => handleSort("date")} className="flex items-center font-medium hover:text-foreground">
                       Date <SortIcon col="date" />
                     </button>
                   </TableHead>
                   <TableHead>
-                    <button
-                      onClick={() => handleSort("task")}
-                      className="flex items-center font-medium hover:text-foreground"
-                    >
+                    <button onClick={() => handleSort("task")} className="flex items-center font-medium hover:text-foreground">
                       Task <SortIcon col="task" />
                     </button>
                   </TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>
-                    <button
-                      onClick={() => handleSort("duration")}
-                      className="flex items-center font-medium hover:text-foreground"
-                    >
+                    <button onClick={() => handleSort("duration")} className="flex items-center font-medium hover:text-foreground">
                       Duration <SortIcon col="duration" />
                     </button>
                   </TableHead>
+                  <TableHead>Focus</TableHead>
                   <TableHead>Pull Request</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -281,40 +215,70 @@ export default function SessionsTable() {
 
               <TableBody>
                 {paginated.map((session) => (
-                  <TableRow key={session.id}>
+                  <TableRow key={session.id} className={session.is_split ? "bg-muted/30" : ""}>
                     <TableCell className="whitespace-nowrap text-muted-foreground">
-                      {format(new Date(session.created_at), "MMM d, yyyy")}
+                      {format(parseISO(session.date), "MMM d, yyyy")}
+                      {session.is_split && (
+                        <span className="ml-1.5 text-xs text-blue-500" title="Split session">↗</span>
+                      )}
                     </TableCell>
 
                     <TableCell className="font-medium">
-                      {search ? (
-                        <Highlight text={session.task} query={search} />
-                      ) : session.task}
+                      {search ? <Highlight text={session.task} query={search} /> : session.task}
                     </TableCell>
 
                     <TableCell className="max-w-xs truncate text-muted-foreground">
                       {session.description
-                        ? search
-                          ? <Highlight text={session.description} query={search} />
-                          : session.description
+                        ? search ? <Highlight text={session.description} query={search} /> : session.description
                         : "—"}
                     </TableCell>
 
                     <TableCell className="whitespace-nowrap font-medium text-primary">
-                      {formatDuration(session.duration_minutes)}
+                      {formatDuration(Number(session.duration_minutes))}
+                    </TableCell>
+
+                    <TableCell>
+                      {session.focus_score != null ? (
+                        <span className={cn(
+                          "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold",
+                          Number(session.focus_score) >= 80
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                            : Number(session.focus_score) >= 60
+                            ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                            : "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400"
+                        )}>
+                          <Zap className="size-3" />
+                          {session.focus_score}%
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell>
                       {session.github_pr ? (
-                        <a
-                          href={session.github_pr}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline"
-                        >
-                          <Globe className="size-4" />
-                          PR
-                        </a>
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={session.github_pr}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                          >
+                            <Globe className="size-3.5" />
+                            PR
+                          </a>
+                          <button
+                            onClick={() => cyclePrStatus(session)}
+                            disabled={updatingPrId === session.id}
+                            title="Click to advance PR status"
+                            className={cn(
+                              "rounded-full border px-2 py-0.5 text-xs font-medium transition-colors hover:opacity-80",
+                              PR_STATUS_CONFIG[session.pr_status ?? "open"].className
+                            )}
+                          >
+                            {updatingPrId === session.id ? "…" : PR_STATUS_CONFIG[session.pr_status ?? "open"].label}
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
@@ -341,23 +305,13 @@ export default function SessionsTable() {
             </Table>
           </div>
 
-          {/* ── Pagination ── */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>
-                Page {safePage} of {totalPages}
-              </span>
+              <span>Page {safePage} of {totalPages}</span>
               <div className="flex gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={safePage === 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
+                <Button variant="outline" size="icon" disabled={safePage === 1} onClick={() => setPage((p) => p - 1)}>
                   <ChevronLeft className="size-4" />
                 </Button>
-
-                {/* Page number pills */}
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
                   .reduce<(number | "…")[]>((acc, p, i, arr) => {
@@ -367,26 +321,15 @@ export default function SessionsTable() {
                   }, [])
                   .map((item, i) =>
                     item === "…" ? (
-                      <span key={`ellipsis-${i}`} className="px-2 py-1">…</span>
+                      <span key={`e-${i}`} className="px-2 py-1">…</span>
                     ) : (
-                      <Button
-                        key={item}
-                        variant={item === safePage ? "default" : "outline"}
-                        size="icon"
-                        onClick={() => setPage(item as number)}
-                        className="size-9"
-                      >
+                      <Button key={item} variant={item === safePage ? "default" : "outline"} size="icon"
+                        onClick={() => setPage(item as number)} className="size-9">
                         {item}
                       </Button>
                     )
                   )}
-
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={safePage === totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
+                <Button variant="outline" size="icon" disabled={safePage === totalPages} onClick={() => setPage((p) => p + 1)}>
                   <ChevronRight className="size-4" />
                 </Button>
               </div>
@@ -397,14 +340,12 @@ export default function SessionsTable() {
 
       <SessionDialog
         open={Boolean(editingSession)}
-        setOpen={(open) => { if (!open) setEditingSession(null); }}
+        setOpen={(o) => { if (!o) setEditingSession(null); }}
         session={editingSession || undefined}
       />
     </>
   );
 }
-
-// ── Highlight matching text in search results ──────────────────────────────
 
 function Highlight({ text, query }: { text: string; query: string }) {
   if (!query) return <>{text}</>;
@@ -414,12 +355,8 @@ function Highlight({ text, query }: { text: string; query: string }) {
     <>
       {parts.map((part, i) =>
         regex.test(part) ? (
-          <mark key={i} className="rounded bg-primary/20 px-0.5 text-foreground">
-            {part}
-          </mark>
-        ) : (
-          part
-        )
+          <mark key={i} className="rounded bg-primary/20 px-0.5 text-foreground">{part}</mark>
+        ) : part
       )}
     </>
   );

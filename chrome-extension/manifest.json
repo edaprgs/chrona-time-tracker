@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Chrona Activity Tracker",
+  "version": "1.0.0",
+  "description": "Tracks browser activity for Chrona — only while punched in, pauses when you pause.",
+  "permissions": ["tabs", "storage", "alarms", "idle"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:3000/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Chrona Tracker"
+  }
+}

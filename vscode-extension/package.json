@@ -1,0 +1,63 @@
+{
+  "name": "chrona-tracker",
+  "displayName": "Chrona Tracker",
+  "description": "VS Code companion for Chrona — sends activity events to your time tracker",
+  "version": "0.1.0",
+  "publisher": "your-publisher-id",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Chrona Tracker",
+      "properties": {
+        "chrona.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "Base URL of your Chrona app (e.g. http://localhost:3000 for local dev)"
+        },
+        "chrona.accessToken": {
+          "type": "string",
+          "default": "",
+          "description": "Your Supabase access token. Copy from Chrona → Settings → Developer."
+        },
+        "chrona.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable activity tracking"
+        },
+        "chrona.debounceMs": {
+          "type": "number",
+          "default": 5000,
+          "description": "Milliseconds to wait before flushing a batch of events (reduces API calls)"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "chrona.enable",
+        "title": "Chrona: Enable Tracking"
+      },
+      {
+        "command": "chrona.disable",
+        "title": "Chrona: Disable Tracking"
+      },
+      {
+        "command": "chrona.showStatus",
+        "title": "Chrona: Show Status"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5"
+  }
+}
