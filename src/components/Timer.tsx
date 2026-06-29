@@ -78,6 +78,7 @@ function formatTime(totalSeconds: number) {
 export default function Timer() {
   const { workspaceName } = useWorkspace();
   const { toast } = useToast();
+  const [mounted, setMounted] = useState(false);
   const [timerState, setTimerState] = useState<TimerState>(loadState);
   const [displaySeconds, setDisplaySeconds] = useState(() => computeSeconds(loadState()));
   const [openDialog, setOpenDialog] = useState(false);
@@ -94,6 +95,8 @@ export default function Timer() {
       return next;
     });
   }, []);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     window.addEventListener("mousemove", handleInteraction, { passive: true });
@@ -236,9 +239,9 @@ export default function Timer() {
       <Card
         className={cn(
           "relative overflow-hidden border-2 transition-colors duration-500",
-          isRecording
+          mounted && isRecording
             ? "border-primary/40 bg-primary/[0.03]"
-            : isPaused
+            : mounted && isPaused
             ? "border-amber-400/40 bg-amber-50/40 dark:bg-amber-950/10"
             : "border-border"
         )}
@@ -247,7 +250,7 @@ export default function Timer() {
         <div
           className={cn(
             "absolute inset-x-0 top-0 h-0.5 transition-colors duration-500",
-            isRecording ? "bg-primary" : isPaused ? "bg-amber-400" : "bg-transparent"
+            mounted && isRecording ? "bg-primary" : mounted && isPaused ? "bg-amber-400" : "bg-transparent"
           )}
         />
 
@@ -258,7 +261,7 @@ export default function Timer() {
             <div className="flex items-center gap-4 md:gap-6">
               {/* Animated clock face */}
               <div className="relative shrink-0">
-                {isRecording && (
+                {mounted && isRecording && (
                   <span className="absolute inset-0 rounded-2xl animate-ping bg-primary/15 duration-1000" />
                 )}
                 <svg
@@ -303,7 +306,7 @@ export default function Timer() {
                   {/* Background */}
                   <rect
                     width="32" height="32" rx="7"
-                    className={isRecording ? "clock-bg-rec" : isPaused ? "clock-bg-pause" : "clock-bg-idle"}
+                    className={mounted && isRecording ? "clock-bg-rec" : mounted && isPaused ? "clock-bg-pause" : "clock-bg-idle"}
                   />
                   <rect width="32" height="32" rx="7" fill="white" fillOpacity="0.1" />
 
@@ -323,16 +326,16 @@ export default function Timer() {
                   </g>
 
                   {/* Second hand — only animates when recording */}
-                  <g className={isRecording ? "clock-hand-sec" : "clock-hand-sec-paused"}>
+                  <g className={mounted && isRecording ? "clock-hand-sec" : "clock-hand-sec-paused"}>
                     <line
                       x1="16" y1="20" x2="20.5" y2="16"
                       stroke="white" strokeWidth="1" strokeLinecap="round"
-                      opacity={isIdle ? 0.3 : 0.9}
+                      opacity={!mounted || isIdle ? 0.3 : 0.9}
                     />
                   </g>
 
                   {/* Center dot */}
-                  <circle cx="16" cy="20" r="1.2" fill="white" className={isRecording ? "clock-center-pulse" : ""} />
+                  <circle cx="16" cy="20" r="1.2" fill="white" className={mounted && isRecording ? "clock-center-pulse" : ""} />
                 </svg>
               </div>
 
@@ -340,19 +343,19 @@ export default function Timer() {
               <div className="space-y-1">
                 {/* Status chip */}
                 <div className="flex items-center gap-2">
-                  {isRecording && (
+                  {mounted && isRecording && (
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
                       <span className="size-1.5 rounded-full bg-primary animate-pulse" />
                       Recording
                     </span>
                   )}
-                  {isPaused && (
+                  {mounted && isPaused && (
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
                       <Coffee className="size-3" />
                       Paused
                     </span>
                   )}
-                  {isIdle && (
+                  {(!mounted || isIdle) && (
                     <span className="text-xs font-medium text-muted-foreground">Ready to start</span>
                   )}
                 </div>
@@ -361,26 +364,26 @@ export default function Timer() {
                 <p
                   className={cn(
                     "font-mono text-5xl font-bold tabular-nums leading-none tracking-tight",
-                    isRecording ? "text-primary" : isPaused ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+                    mounted && isRecording ? "text-primary" : mounted && isPaused ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
                   )}
                 >
-                  {formatTime(displaySeconds)}
+                  {mounted ? formatTime(displaySeconds) : "00:00:00"}
                 </p>
 
                 {/* Context pills */}
                 <div className="flex flex-wrap items-center gap-3 pt-0.5">
-                  {punchInLabel && (
+                  {mounted && punchInLabel && (
                     <span className="text-xs text-muted-foreground">
                       Punched in <span className="font-medium text-foreground">{punchInLabel}</span>
                     </span>
                   )}
-                  {pauseCount > 0 && (
+                  {mounted && pauseCount > 0 && (
                     <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                       <Coffee className="size-3" />
                       {pauseCount} pause{pauseCount !== 1 ? "s" : ""}
                     </span>
                   )}
-                  {displaySeconds > 0 && (
+                  {mounted && displaySeconds > 0 && (
                     <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                       {(displaySeconds / 3600).toFixed(2)}h elapsed
                     </span>
@@ -395,18 +398,18 @@ export default function Timer() {
                 <Button
                   size="lg"
                   onClick={handleStart}
-                  disabled={isRecording}
+                  disabled={mounted && isRecording}
                   className="gap-2 px-6"
                 >
                   <Play className="size-4" />
-                  {timerState.punchedInAt ? "Resume" : "Punch In"}
+                  {mounted && timerState.punchedInAt ? "Resume" : "Punch In"}
                 </Button>
 
                 <Button
                   size="lg"
                   variant="secondary"
                   onClick={handlePauseRequest}
-                  disabled={!isRecording}
+                  disabled={!mounted || !isRecording}
                   className="gap-2"
                 >
                   <Pause className="size-4" />
@@ -415,10 +418,10 @@ export default function Timer() {
 
                 <Button
                   size="lg"
-                  variant={isPaused ? "default" : "outline"}
+                  variant={mounted && isPaused ? "default" : "outline"}
                   onClick={handleStop}
-                  disabled={displaySeconds === 0}
-                  className={cn("gap-2", isPaused && "border-destructive/30 bg-destructive text-destructive-foreground hover:bg-destructive/90")}
+                  disabled={!mounted || displaySeconds === 0}
+                  className={cn("gap-2", mounted && isPaused && "border-destructive/30 bg-destructive text-destructive-foreground hover:bg-destructive/90")}
                 >
                   <Square className="size-4" />
                   Punch Out
