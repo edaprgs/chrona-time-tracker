@@ -187,7 +187,16 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border">
-          <Table>
+          <Table className="table-fixed w-full">
+            <colgroup>
+              <col className="w-[110px]" />
+              <col className="w-[22%]" />
+              <col />
+              <col className="w-[90px]" />
+              <col className="w-[110px]" />
+              {showPHP && <col className="w-[110px]" />}
+              <col className="w-[60px]" />
+            </colgroup>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
@@ -209,8 +218,8 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
                     <TableCell className="whitespace-nowrap text-muted-foreground">
                       {format(parseISO(session.date), "MMM d, yyyy")}
                     </TableCell>
-                    <TableCell className="font-medium">{session.task}</TableCell>
-                    <TableCell className="max-w-xs truncate text-muted-foreground">
+                    <TableCell className="truncate font-medium">{session.task}</TableCell>
+                    <TableCell className="truncate text-muted-foreground">
                       {session.description || "—"}
                     </TableCell>
                     <TableCell className="whitespace-nowrap font-medium">

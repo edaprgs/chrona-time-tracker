@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={cn("h-full antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}>
-      <body className="flex min-h-full bg-background text-foreground">
+      <body className="flex min-h-screen bg-background text-foreground">
         <ToastProvider>
           <AuthProvider>
             <WorkspaceProvider>

@@ -188,7 +188,16 @@ export default function SessionsTable() {
       ) : (
         <>
           <div className="overflow-hidden rounded-xl border">
-            <Table>
+            <Table className="table-fixed w-full">
+              <colgroup>
+                <col className="w-[110px]" />
+                <col className="w-[22%]" />
+                <col />
+                <col className="w-[90px]" />
+                <col className="w-[70px]" />
+                <col className="w-[150px]" />
+                <col className="w-[80px]" />
+              </colgroup>
               <TableHeader>
                 <TableRow>
                   <TableHead>
@@ -223,11 +232,11 @@ export default function SessionsTable() {
                       )}
                     </TableCell>
 
-                    <TableCell className="font-medium">
+                    <TableCell className="truncate font-medium">
                       {search ? <Highlight text={session.task} query={search} /> : session.task}
                     </TableCell>
 
-                    <TableCell className="max-w-xs truncate text-muted-foreground">
+                    <TableCell className="truncate text-muted-foreground">
                       {session.description
                         ? search ? <Highlight text={session.description} query={search} /> : session.description
                         : "—"}

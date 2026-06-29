@@ -44,7 +44,7 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-20 flex w-64 flex-col border-r bg-card/95 backdrop-blur-sm print:hidden">
+      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r bg-card/95 backdrop-blur-sm print:hidden">
 
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5">
@@ -165,9 +165,6 @@ export default function Sidebar() {
                   isActive && "group-hover:scale-100"
                 )} />
                 {label}
-                {isActive && (
-                  <span className="ml-auto size-1.5 rounded-full bg-primary-foreground/60" />
-                )}
               </Link>
             );
           })}
