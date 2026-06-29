@@ -5,7 +5,8 @@ import { useWorkspace } from "@/context/WorkspaceContext";
 import { useToast } from "@/hooks/useToast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Settings, DollarSign, Clock, Calendar, User, Briefcase, Trash2, Plus, Check, Globe } from "lucide-react";
+import { Settings, DollarSign, Clock, Calendar, User, Briefcase, Trash2, Plus, Check, Globe, Code2, Copy, CheckCheck } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import NewWorkspaceDialog from "@/components/NewWorkspaceDialog";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,14 @@ export default function SettingsPage() {
   const [description, setDescription]     = useState("");
   const [saving, setSaving]               = useState(false);
   const [showNew, setShowNew]             = useState(false);
+  const [accessToken, setAccessToken]     = useState("");
+  const [copied, setCopied]               = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setAccessToken(data.session?.access_token ?? "");
+    });
+  }, []);
 
   useEffect(() => {
     if (!active) return;
@@ -250,6 +259,51 @@ export default function SettingsPage() {
           <Button size="sm" variant="secondary" onClick={() => window.open("chrome://extensions", "_blank")}>
             Manage in Chrome
           </Button>
+        </div>
+
+        {/* VS Code Extension */}
+        <div className="rounded-xl border bg-card p-5 flex items-start gap-4">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+            <Code2 className="size-5 text-muted-foreground" />
+          </div>
+          <div className="flex-1 min-w-0 space-y-3">
+            <div>
+              <p className="font-semibold text-sm">VS Code Extension</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Sends file edits, saves, terminal activity, and git commits to your activity log.
+              </p>
+            </div>
+
+            {/* Access token */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">Access Token</p>
+              <p className="text-xs text-muted-foreground">
+                Copy this into VS Code → Settings → <span className="font-mono">chrona.accessToken</span>
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0 rounded-lg border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground truncate">
+                  {accessToken || "Loading…"}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 gap-1.5"
+                  disabled={!accessToken}
+                  onClick={() => {
+                    navigator.clipboard.writeText(accessToken);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                >
+                  {copied ? <CheckCheck className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+                  {copied ? "Copied!" : "Copy"}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground/60">
+                Also set <span className="font-mono">chrona.apiUrl</span> to your deployed URL (or <span className="font-mono">http://localhost:3000</span> for local dev).
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </main>
