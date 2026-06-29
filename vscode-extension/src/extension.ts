@@ -149,7 +149,7 @@ async function fetchActiveSession() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
-      const json = await res.json();
+      const json = await res.json() as { session?: { id: string } };
       activeSessionId = json.session?.id ?? null;
       refreshStatus();
     }
