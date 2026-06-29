@@ -71,7 +71,7 @@ export default function DailyChart() {
               tickLine={false}
               tickFormatter={(v) => `${v}h`}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--color-accent)", opacity: 0.4 }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.05)" }} wrapperStyle={{ outline: "none" }} />
             <ReferenceLine
               y={dailySoftCap}
               stroke="var(--color-border)"
@@ -84,12 +84,12 @@ export default function DailyChart() {
                   key={entry.day}
                   fill={
                     entry.isToday
-                      ? "var(--color-primary)"
+                      ? "#f9a8d4"
                       : entry.hours > 0
-                      ? "var(--color-chart-2)"
-                      : "var(--color-border)"
+                      ? "#c4b5fd"
+                      : "#e5e7eb"
                   }
-                  fillOpacity={entry.hours === 0 ? 0.3 : 1}
+                  fillOpacity={entry.hours === 0 ? 0.5 : 1}
                 />
               ))}
             </Bar>

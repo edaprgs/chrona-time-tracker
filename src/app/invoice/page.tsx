@@ -32,7 +32,7 @@ export default function InvoicePage() {
   const [displayCurrency, setDisplayCurrency] = useState("USD");
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 px-6 py-10 print:px-0 print:py-4">
+    <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:space-y-8 md:px-6 md:py-10 print:px-0 print:py-4">
       <div className="print:hidden">
         <h1 className="text-3xl font-bold">Invoice</h1>
         <p className="text-muted-foreground">

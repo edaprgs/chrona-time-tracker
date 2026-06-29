@@ -87,8 +87,8 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
 
   async function updateSession(id: string, patch: Partial<Session>) {
     if (!user) return;
+    setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
     await supabase.from("sessions").update(patch).eq("id", id).eq("user_id", user.id);
-    await refetch();
   }
 
   async function deleteSession(id: string) {

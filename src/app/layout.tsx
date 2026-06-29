@@ -9,6 +9,7 @@ import { SessionsProvider } from "@/context/SessionsContext";
 import { ToastProvider } from "@/hooks/useToast";
 import { AuthProvider } from "@/context/AuthContext";
 import { WorkspaceProvider } from "@/context/WorkspaceContext";
+import { MobileSidebarProvider } from "@/context/MobileSidebarContext";
 
 const inter      = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const geistSans  = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -27,9 +28,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthProvider>
             <WorkspaceProvider>
               <SessionsProvider>
-                <SidebarWrapper />
-                <MainContent>{children}</MainContent>
-                <Toaster />
+                <MobileSidebarProvider>
+                  <SidebarWrapper />
+                  <MainContent>{children}</MainContent>
+                  <Toaster />
+                </MobileSidebarProvider>
               </SessionsProvider>
             </WorkspaceProvider>
           </AuthProvider>

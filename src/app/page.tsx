@@ -5,23 +5,29 @@ import DailyChart from "@/components/DailyChart";
 import Timer from "@/components/Timer";
 import RecentActivity from "@/components/RecentActivity";
 import ActivityLog from "@/components/ActivityLog";
+import TopTasks from "@/components/TopTasks";
+import NotesWidget from "@/components/NotesWidget";
+import OvertimeBanner from "@/components/OvertimeBanner";
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-background">
       {/* Top bar */}
-      <div className="border-b bg-card/60 px-8 py-5 backdrop-blur-sm print:hidden">
+      <div className="border-b bg-card/60 px-4 py-4 backdrop-blur-sm print:hidden md:px-8 md:py-5">
         <Header />
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-8 px-8 py-8">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-8 md:py-8 md:space-y-8">
+        {/* Overtime alert */}
+        <OvertimeBanner />
+
         {/* Hero — Timer takes the full width top slot */}
         <Timer />
 
         {/* Stat strip */}
         <StatCards />
 
-        {/* Charts row */}
+        {/* Charts + Top Tasks row */}
         <div className="grid gap-6 lg:grid-cols-5">
           <div className="lg:col-span-3">
             <DailyChart />
@@ -31,8 +37,16 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Session history */}
-        <RecentActivity />
+        {/* Top Tasks + Recent Activity + Notes */}
+        <div className="grid gap-6 lg:grid-cols-5">
+          <div className="space-y-6 lg:col-span-2">
+            <TopTasks />
+            <NotesWidget />
+          </div>
+          <div className="lg:col-span-3">
+            <RecentActivity />
+          </div>
+        </div>
 
         {/* Activity log */}
         <ActivityLog />

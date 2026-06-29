@@ -251,11 +251,11 @@ export default function Timer() {
           )}
         />
 
-        <CardContent className="px-8 py-7">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <CardContent className="px-4 py-5 md:px-8 md:py-7">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
 
             {/* Left — time display + status */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 md:gap-6">
               {/* Animated clock face */}
               <div className="relative shrink-0">
                 {isRecording && (
@@ -391,7 +391,7 @@ export default function Timer() {
 
             {/* Right — actions */}
             <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   size="lg"
                   onClick={handleStart}

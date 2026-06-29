@@ -30,7 +30,7 @@ const PR_STATUS_CONFIG: Record<PrStatus, { label: string; className: string }> =
   in_review: { label: "In Review",  className: "border-blue-300 bg-blue-100 text-blue-700 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
   approved:  { label: "Approved",   className: "border-green-300 bg-green-100 text-green-700 dark:border-green-700 dark:bg-green-900/40 dark:text-green-300" },
   merged:    { label: "Merged",     className: "border-purple-300 bg-purple-100 text-purple-700 dark:border-purple-700 dark:bg-purple-900/40 dark:text-purple-300" },
-  done:      { label: "Done ✓",     className: "border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+  done:      { label: "Done",        className: "border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
 };
 
 const PR_STATUS_CYCLE: PrStatus[] = ["open", "in_review", "approved", "merged", "done"];
@@ -266,27 +266,35 @@ export default function SessionsTable() {
 
                     <TableCell>
                       {session.github_pr ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <a
                             href={session.github_pr}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                            className="inline-flex items-center gap-1 text-primary hover:underline text-xs shrink-0"
                           >
                             <Globe className="size-3.5" />
                             PR
                           </a>
-                          <button
-                            onClick={() => cyclePrStatus(session)}
+                          <select
+                            value={session.pr_status ?? "open"}
                             disabled={updatingPrId === session.id}
-                            title="Click to advance PR status"
+                            onChange={async (e) => {
+                              setUpdatingPrId(session.id);
+                              await updateSession(session.id, { pr_status: e.target.value as PrStatus });
+                              setUpdatingPrId(null);
+                            }}
                             className={cn(
-                              "rounded-full border px-2 py-0.5 text-xs font-medium transition-colors hover:opacity-80",
+                              "rounded-full border px-1.5 py-px text-[11px] font-medium cursor-pointer appearance-none transition-colors focus:outline-none disabled:opacity-50 max-w-[72px] text-center",
                               PR_STATUS_CONFIG[session.pr_status ?? "open"].className
                             )}
                           >
-                            {updatingPrId === session.id ? "…" : PR_STATUS_CONFIG[session.pr_status ?? "open"].label}
-                          </button>
+                            {PR_STATUS_CYCLE.map((s) => (
+                              <option key={s} value={s} className="bg-background text-foreground">
+                                {PR_STATUS_CONFIG[s].label}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       ) : (
                         <span className="text-muted-foreground">—</span>
