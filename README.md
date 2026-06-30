@@ -79,9 +79,22 @@ Tracks browser tabs (GitHub, Linear, Figma, Notion, etc.) while punched in. Bloc
 
 ### Install
 
-1. Open `chrome-extension/config.js` — fill in your Supabase URL and anon key
+1. Open `chrome-extension/config.js` — fill in your Supabase URL and anon key (must match the same project as `content.js`'s hardcoded `SUPABASE_URL`/`SUPABASE_ANON_KEY`)
 2. Go to `chrome://extensions` → Enable **Developer mode** → **Load unpacked** → select the `chrome-extension/` folder
-3. Sign into Chrona — the extension connects automatically
+3. Sign into Chrona on the matching origin — the extension connects automatically by reading the `sb-<project-ref>-auth-token` key from `localStorage`
+
+### After every reload
+
+Any time you reload the extension from `chrome://extensions` (e.g. after editing `background.js`/`content.js`), **hard-refresh every already-open Chrona tab**. Old content script instances become orphaned ("Extension context invalidated") and silently stop sending punch-in/tab events until the page is refreshed.
+
+### Debugging
+
+Open `chrome://extensions` → Chrona Tracker → **service worker** link to inspect the background worker directly. To check live state without relying on self-messaging (unreliable from the worker's own console):
+```js
+const r = await chrome.storage.session.get("trackerState");
+console.log(r);
+```
+Check `isPunchedIn`, `supabaseUrl`/`supabaseAnonKey` (must be non-null), and decode `accessToken` to confirm its `iss` claim matches `supabaseUrl`'s project ref.
 
 ## VS Code Extension
 
@@ -175,3 +188,5 @@ supabase/migrations/        # Database migration SQL files
 - **Timer hydration**: All timer state read from `localStorage` (recording/paused/idle, elapsed time, button labels) is gated behind a `mounted` flag in `Timer.tsx`. The server always renders the neutral/idle markup; the real state applies after the client mounts, avoiding React hydration mismatches.
 - **VS Code auth**: `/api/activity` validates requests against the `api_keys` table (a permanent per-user token), not a Supabase session JWT — session tokens expire hourly and broke the integration repeatedly. The `chrona.signIn` VS Code command opens `/vscode-auth` in the browser, which on approval redirects to `vscode://<publisher>.<name>/auth?key=...` to hand the key back to the extension via its registered URI handler.
 - **Chrome extension token refresh**: `content.js` re-pushes the current Supabase session token to the background worker every 4 minutes, since Supabase's silent token refresh updates `localStorage` without firing a same-tab `storage` event — without this, the background worker's token goes stale after ~1 hour and tab-tracking inserts fail silently.
+- **Chrome extension tab heartbeat**: `background.js` logs a tab's duration only when you switch away from it. A `chrome.alarms` heartbeat fires every 30s to flush the currently active tab's elapsed time too, so a tab left open for minutes (reading docs, etc.) still gets tracked instead of waiting for a tab switch.
+- **Chrome extension project-scoped auth**: `getSupabaseCredentials()` in `content.js` reads the auth token from the exact `sb-<project-ref>-auth-token` localStorage key (ref derived from the hardcoded `SUPABASE_URL`), not a wildcard scan — scanning for any `sb-*-auth-token` key picks up stale sessions from other Supabase projects, producing a JWT whose issuer doesn't match `supabaseUrl` and gets silently rejected on every insert. Likewise, `sendToBackground()` falls back to the hardcoded `SUPABASE_URL`/`SUPABASE_ANON_KEY` constants instead of passing through `null`, since a `PUNCH_IN` message with `null` credentials would overwrite the working values `AUTO_AUTH` had already set.
