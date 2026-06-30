@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from "date-fns";
+import { useMemo, useState } from "react";
+import { format, isWithinInterval, startOfDay, endOfDay, parseISO, addDays } from "date-fns";
 import { useSessionsContext } from "@/context/SessionsContext";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
@@ -14,13 +14,17 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import Pagination from "./Pagination";
 import { Download, FileText, Globe, Loader2, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Props {
   start: Date;
   end: Date;
   displayCurrency: string;
 }
+
+const PAGE_SIZE = 15;
 
 function getCurrencySymbol(code: string): string {
   return CURRENCIES.find((c) => c.code === code)?.symbol ?? code;
@@ -34,7 +38,7 @@ function fmt(amount: number, symbol: string): string {
 
 export default function InvoiceTable({ start, end, displayCurrency }: Props) {
   const { sessions, loading: sessionsLoading } = useSessionsContext();
-  const { hourlyRate, contractorName, clientName } = useWorkspace();
+  const { hourlyRate, contractorName, clientName, workspaceName, paymentTermsDays } = useWorkspace();
 
   // Exchange rates — base is always USD (the contract pays in USD)
   const { rates, loading: ratesLoading, error: ratesError, convert, updatedAt } = useExchangeRate("USD");
@@ -45,12 +49,28 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
   const symbol    = getCurrencySymbol(displayCurrency);
   const phpSymbol = getCurrencySymbol("PHP");
 
+  const [page, setPage] = useState(1);
+
   const filtered = useMemo(
     () => sessions.filter((s) =>
       isWithinInterval(parseISO(s.date), { start: startOfDay(start), end: endOfDay(end) })
     ),
     [sessions, start, end]
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage    = Math.min(page, totalPages);
+
+  // Deterministic per period — same invoice number every time you reopen the
+  // same date range, rather than a random/incrementing id that would change
+  // every render and make the document untrustworthy as a reference.
+  const invoiceNumber = useMemo(() => {
+    const slug = (workspaceName || "INV").slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "X");
+    return `INV-${slug}-${format(start, "yyyyMMdd")}`;
+  }, [workspaceName, start]);
+
+  const generatedAt = useMemo(() => new Date(), [start, end, displayCurrency]);
+  const dueDate      = useMemo(() => addDays(end, paymentTermsDays), [end, paymentTermsDays]);
 
   const totalMinutes = filtered.reduce((sum, s) => sum + Number(s.duration_minutes || 0), 0);
   const totalHours   = totalMinutes / 60;
@@ -82,6 +102,13 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Invoice meta */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground print:hidden">
+        <span><span className="font-medium text-foreground">{invoiceNumber}</span></span>
+        <span className="opacity-40">·</span>
+        <span>Due {format(dueDate, "MMM d, yyyy")} (Net {paymentTermsDays})</span>
+      </div>
+
       {/* Exchange rate notice */}
       {!isUSD && (
         <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground print:hidden">
@@ -141,7 +168,13 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
 
       {/* Printable invoice header */}
       <div className="hidden print:block space-y-2 border-b pb-6">
-        <h1 className="text-2xl font-bold">Invoice</h1>
+        <div className="flex items-start justify-between">
+          <h1 className="text-2xl font-bold">Invoice</h1>
+          <div className="text-right text-sm">
+            <p className="font-semibold">{invoiceNumber}</p>
+            <p className="text-muted-foreground">Generated {format(generatedAt, "MMMM d, yyyy")}</p>
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="font-semibold">From</p>
@@ -154,6 +187,7 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
         </div>
         <div className="text-sm mt-2">
           <p><span className="font-semibold">Period:</span> {format(start, "MMMM d, yyyy")} – {format(end, "MMMM d, yyyy")}</p>
+          <p><span className="font-semibold">Due Date:</span> {format(dueDate, "MMMM d, yyyy")} (Net {paymentTermsDays})</p>
           <p><span className="font-semibold">Rate:</span> ${hourlyRate}.00 USD / hour</p>
           {!isUSD && totalDisplay !== null && (
             <p><span className="font-semibold">Total ({displayCurrency}):</span> {fmt(totalDisplay, symbol)}</p>
@@ -171,7 +205,19 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
         </p>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2"
-            onClick={() => exportSessionsCsv(filtered, format(start, "yyyy-MM-dd"), format(end, "yyyy-MM-dd"), hourlyRate, contractorName, clientName)}
+            onClick={() => exportSessionsCsv({
+              sessions: filtered,
+              periodStart: format(start, "yyyy-MM-dd"),
+              periodEnd: format(end, "yyyy-MM-dd"),
+              hourlyRateUsd: hourlyRate,
+              contractorName,
+              clientName,
+              invoiceNumber,
+              generatedAt,
+              dueDate,
+              displayCurrency,
+              convert,
+            })}
             disabled={filtered.length === 0}>
             <Download className="size-4" /> Export CSV
           </Button>
@@ -209,12 +255,15 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((session) => {
+              {filtered.map((session, idx) => {
                 const hours    = Number(session.duration_minutes) / 60;
                 const usdAmt   = hours * hourlyRate;
                 const php      = phpAmount(usdAmt);
+                // Pagination only affects what's shown on screen — printing
+                // (Print / Save PDF) always includes every session in the period.
+                const inPage   = idx >= (safePage - 1) * PAGE_SIZE && idx < safePage * PAGE_SIZE;
                 return (
-                  <TableRow key={session.id}>
+                  <TableRow key={session.id} className={cn(!inPage && "hidden print:table-row")}>
                     <TableCell className="whitespace-nowrap text-muted-foreground">
                       {format(parseISO(session.date), "MMM d, yyyy")}
                     </TableCell>
@@ -263,6 +312,10 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
           </div>
         </div>
       )}
+
+      <div className="print:hidden">
+        <Pagination page={safePage} totalPages={totalPages} onChange={setPage} />
+      </div>
     </div>
   );
 }

@@ -13,11 +13,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SessionDialog from "./SessionDialog";
+import ViewSessionDialog from "./ViewSessionDialog";
+import Pagination from "./Pagination";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import {
   Pencil, Trash2, Globe, Loader2,
   ArrowUpDown, ArrowUp, ArrowDown,
-  Search, X, ChevronLeft, ChevronRight,
-  Zap,
+  Search, X,
+  Zap, MoreVertical, Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +45,7 @@ export default function SessionsTable() {
   const { toast } = useToast();
 
   const [editingSession, setEditingSession] = useState<Session | null>(null);
+  const [viewingSession, setViewingSession] = useState<Session | null>(null);
   const [deletingId, setDeletingId]         = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [updatingPrId, setUpdatingPrId]     = useState<string | null>(null);
@@ -195,7 +201,8 @@ export default function SessionsTable() {
                 <col />
                 <col className="w-[90px]" />
                 <col className="w-[70px]" />
-                <col className="w-[150px]" />
+                <col className="w-[90px]" />
+                <col className="w-[110px]" />
                 <col className="w-[80px]" />
               </colgroup>
               <TableHeader>
@@ -217,7 +224,8 @@ export default function SessionsTable() {
                     </button>
                   </TableHead>
                   <TableHead>Focus</TableHead>
-                  <TableHead>Pull Request</TableHead>
+                  <TableHead className="whitespace-nowrap">Pull Request</TableHead>
+                  <TableHead className="whitespace-nowrap">Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -264,57 +272,67 @@ export default function SessionsTable() {
                       )}
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell className="overflow-hidden">
                       {session.github_pr ? (
-                        <div className="flex items-center gap-1.5">
-                          <a
-                            href={session.github_pr}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:underline text-xs shrink-0"
-                          >
-                            <Globe className="size-3.5" />
-                            PR
-                          </a>
-                          <select
-                            value={session.pr_status ?? "open"}
-                            disabled={updatingPrId === session.id}
-                            onChange={async (e) => {
-                              setUpdatingPrId(session.id);
-                              await updateSession(session.id, { pr_status: e.target.value as PrStatus });
-                              setUpdatingPrId(null);
-                            }}
-                            className={cn(
-                              "rounded-full border px-1.5 py-px text-[11px] font-medium cursor-pointer appearance-none transition-colors focus:outline-none disabled:opacity-50 max-w-[72px] text-center",
-                              PR_STATUS_CONFIG[session.pr_status ?? "open"].className
-                            )}
-                          >
-                            {PR_STATUS_CYCLE.map((s) => (
-                              <option key={s} value={s} className="bg-background text-foreground">
-                                {PR_STATUS_CONFIG[s].label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        <a
+                          href={session.github_pr}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 whitespace-nowrap text-primary hover:underline text-xs"
+                        >
+                          <Globe className="size-3.5 shrink-0" />
+                          PR
+                        </a>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
 
+                    <TableCell className="overflow-hidden">
+                      <select
+                        value={session.pr_status ?? "open"}
+                        disabled={updatingPrId === session.id}
+                        onChange={async (e) => {
+                          setUpdatingPrId(session.id);
+                          await updateSession(session.id, { pr_status: e.target.value as PrStatus });
+                          setUpdatingPrId(null);
+                        }}
+                        className={cn(
+                          "w-full rounded-full border px-1.5 py-px text-[11px] font-medium cursor-pointer appearance-none transition-colors focus:outline-none disabled:opacity-50 text-center",
+                          PR_STATUS_CONFIG[session.pr_status ?? "open"].className
+                        )}
+                      >
+                        {PR_STATUS_CYCLE.map((s) => (
+                          <option key={s} value={s} className="bg-background text-foreground">
+                            {PR_STATUS_CONFIG[s].label}
+                          </option>
+                        ))}
+                      </select>
+                    </TableCell>
+
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => setEditingSession(session)}>
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(session.id)}
-                          disabled={deletingId === session.id}
-                        >
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button variant="ghost" size="icon" disabled={deletingId === session.id}>
+                              {deletingId === session.id
+                                ? <Loader2 className="size-4 animate-spin" />
+                                : <MoreVertical className="size-4" />}
+                            </Button>
+                          }
+                        />
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => setViewingSession(session)}>
+                            <Eye className="size-4" /> View
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setEditingSession(session)}>
+                            <Pencil className="size-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onClick={() => handleDelete(session.id)}>
+                            <Trash2 className="size-4" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -322,36 +340,7 @@ export default function SessionsTable() {
             </Table>
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Page {safePage} of {totalPages}</span>
-              <div className="flex gap-1">
-                <Button variant="outline" size="icon" disabled={safePage === 1} onClick={() => setPage((p) => p - 1)}>
-                  <ChevronLeft className="size-4" />
-                </Button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
-                  .reduce<(number | "…")[]>((acc, p, i, arr) => {
-                    if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("…");
-                    acc.push(p);
-                    return acc;
-                  }, [])
-                  .map((item, i) =>
-                    item === "…" ? (
-                      <span key={`e-${i}`} className="px-2 py-1">…</span>
-                    ) : (
-                      <Button key={item} variant={item === safePage ? "default" : "outline"} size="icon"
-                        onClick={() => setPage(item as number)} className="size-9">
-                        {item}
-                      </Button>
-                    )
-                  )}
-                <Button variant="outline" size="icon" disabled={safePage === totalPages} onClick={() => setPage((p) => p + 1)}>
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <Pagination page={safePage} totalPages={totalPages} onChange={setPage} />
         </>
       )}
 
@@ -359,6 +348,12 @@ export default function SessionsTable() {
         open={Boolean(editingSession)}
         setOpen={(o) => { if (!o) setEditingSession(null); }}
         session={editingSession || undefined}
+      />
+
+      <ViewSessionDialog
+        open={Boolean(viewingSession)}
+        setOpen={(o) => { if (!o) setViewingSession(null); }}
+        session={viewingSession || undefined}
       />
     </>
   );

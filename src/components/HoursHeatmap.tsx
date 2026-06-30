@@ -44,14 +44,17 @@ export default function HoursHeatmap() {
     return { weeks, totalDays };
   }, [sessions]);
 
+  // One entry per week column (not just months that start) so the label row
+  // shares the exact same flex layout as the grid below it — a manual pixel
+  // offset (col * width) drifts out of alignment under rounding/zoom.
   const monthLabels = useMemo(() => {
-    const labels: { label: string; col: number }[] = [];
     let lastMonth = -1;
-    weeks.forEach((week, i) => {
+    return weeks.map((week) => {
       const m = week[0].date.getMonth();
-      if (m !== lastMonth) { labels.push({ label: format(week[0].date, "MMM"), col: i }); lastMonth = m; }
+      const isNewMonth = m !== lastMonth;
+      lastMonth = m;
+      return isNewMonth ? format(week[0].date, "MMM") : null;
     });
-    return labels;
   }, [weeks]);
 
   return (
@@ -68,18 +71,9 @@ export default function HoursHeatmap() {
         </div>
 
         <div className="overflow-x-auto">
-          {/* Month labels */}
-          <div className="mb-1 flex" style={{ paddingLeft: 32 }}>
-            {monthLabels.map(({ label, col }) => (
-              <div key={`${label}-${col}`} className="shrink-0 text-[10px] text-muted-foreground" style={{ width: 13, marginLeft: col === 0 ? 0 : undefined, position: "relative", left: col * 13 }}>
-                {label}
-              </div>
-            ))}
-          </div>
-
           <div className="flex gap-1">
             {/* Day labels */}
-            <div className="flex shrink-0 flex-col gap-px pt-px" style={{ width: 28 }}>
+            <div className="flex shrink-0 flex-col gap-px pt-[18px]" style={{ width: 28 }}>
               {DAYS.map((d, i) => (
                 <div key={d} className={`h-3 text-[9px] leading-3 text-muted-foreground ${i % 2 === 0 ? "invisible" : ""}`}>
                   {d}
@@ -87,19 +81,31 @@ export default function HoursHeatmap() {
               ))}
             </div>
 
-            {/* Grid */}
-            <div className="flex gap-px">
-              {weeks.map((week, wi) => (
-                <div key={wi} className="flex flex-col gap-px">
-                  {week.map((day) => (
-                    <div
-                      key={day.key}
-                      title={day.future ? "" : `${format(day.date, "MMM d, yyyy")}: ${day.hours.toFixed(1)}h`}
-                      className={`size-3 rounded-sm transition-colors ${day.future ? "opacity-0" : intensityClass(day.hours)}`}
-                    />
-                  ))}
-                </div>
-              ))}
+            <div>
+              {/* Month labels — one column per week, same width as the grid below,
+                  so labels can never drift out of alignment with their column. */}
+              <div className="mb-1 flex gap-px">
+                {monthLabels.map((label, wi) => (
+                  <div key={wi} className="w-3 shrink-0 text-[10px] leading-none text-muted-foreground">
+                    {label}
+                  </div>
+                ))}
+              </div>
+
+              {/* Grid */}
+              <div className="flex gap-px">
+                {weeks.map((week, wi) => (
+                  <div key={wi} className="flex flex-col gap-px">
+                    {week.map((day) => (
+                      <div
+                        key={day.key}
+                        title={day.future ? "" : `${format(day.date, "MMM d, yyyy")}: ${day.hours.toFixed(1)}h`}
+                        className={`size-3 rounded-[2px] transition-colors ${day.future ? "opacity-0" : intensityClass(day.hours)}`}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -107,7 +113,7 @@ export default function HoursHeatmap() {
           <div className="mt-3 flex items-center gap-1.5 justify-end">
             <span className="text-[10px] text-muted-foreground">Less</span>
             {["bg-muted/60", "bg-emerald-200 dark:bg-emerald-800", "bg-emerald-400 dark:bg-emerald-600", "bg-emerald-500", "bg-emerald-700 dark:bg-emerald-400"].map((cls, i) => (
-              <div key={i} className={`size-3 rounded-sm ${cls}`} />
+              <div key={i} className={`size-3 rounded-[2px] ${cls}`} />
             ))}
             <span className="text-[10px] text-muted-foreground">More</span>
           </div>

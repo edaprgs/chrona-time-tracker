@@ -5,6 +5,7 @@ import { StickyNote, Plus } from "lucide-react";
 import { useNotes, type Note } from "@/hooks/useNotes";
 import NoteCard from "@/components/NoteCard";
 import NoteEditorDialog from "@/components/NoteEditorDialog";
+import PageHeader from "@/components/PageHeader";
 
 export default function NotesPage() {
   const { pinned, unpinned, addNote, updateNote, deleteNote, togglePin } = useNotes();
@@ -15,26 +16,20 @@ export default function NotesPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="border-b bg-card/60 px-4 py-4 backdrop-blur-sm md:px-8 md:py-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10">
-              <StickyNote className="size-4 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight md:text-2xl">Notes</h1>
-              <p className="text-sm text-muted-foreground">Your personal notes and reminders</p>
-            </div>
-          </div>
+      <PageHeader
+        icon={StickyNote}
+        title="Notes"
+        subtitle="Your personal notes and reminders"
+        actions={
           <button
             onClick={() => setEditing("new")}
-            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="flex shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <Plus className="size-4" />
             <span className="hidden sm:inline">New note</span>
           </button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="mx-auto max-w-5xl space-y-8 px-4 py-6 md:px-8 md:py-8">
         {/* Compose bar */}

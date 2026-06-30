@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Clock3, LogIn, UserPlus, Eye, EyeOff } from "lucide-react";
+import { Clock3, LogIn, UserPlus, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Mode = "signin" | "signup";
@@ -56,6 +57,11 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
 
+        <Link href="/" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="size-3.5" />
+          Back to home
+        </Link>
+
         {/* Logo */}
         <div className="space-y-2 text-center">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10">
@@ -100,7 +106,7 @@ export default function LoginPage() {
           {/* Sign-up heading context */}
           {!isSignIn && (
             <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
-              Each account is its own isolated workspace. Use a different email for each client or job.
+              One account, unlimited workspaces — add a separate workspace for each client or job, all under the same login.
             </div>
           )}
 

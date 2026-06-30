@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Settings, DollarSign, Clock, Calendar, User, Briefcase, Trash2, Plus, Check, Globe, Code2, Copy, CheckCheck } from "lucide-react";
 import { getOrCreateApiKey, regenerateApiKey as regenerateApiKeyHelper } from "@/lib/apiKey";
 import NewWorkspaceDialog from "@/components/NewWorkspaceDialog";
+import PageHeader from "@/components/PageHeader";
 import { cn } from "@/lib/utils";
 
 const COLORS = [
@@ -25,6 +26,7 @@ export default function SettingsPage() {
   const [hourlyRate, setHourlyRate]       = useState("7");
   const [weeklyCap, setWeeklyCap]         = useState("40");
   const [cycleDays, setCycleDays]         = useState("14");
+  const [paymentTermsDays, setPaymentTermsDays] = useState("15");
   const [color, setColor]                 = useState(COLORS[0]);
   const [description, setDescription]     = useState("");
   const [saving, setSaving]               = useState(false);
@@ -56,6 +58,7 @@ export default function SettingsPage() {
     setHourlyRate(String(active.hourly_rate_usd));
     setWeeklyCap(String(active.weekly_hour_cap));
     setCycleDays(String(active.invoice_cycle_days));
+    setPaymentTermsDays(String(active.payment_terms_days));
     setColor(active.color ?? COLORS[0]);
     setDescription(active.description ?? "");
   }, [active]);
@@ -71,6 +74,7 @@ export default function SettingsPage() {
       hourly_rate_usd:    Number(hourlyRate),
       weekly_hour_cap:    Number(weeklyCap),
       invoice_cycle_days: Number(cycleDays),
+      payment_terms_days: Number(paymentTermsDays),
       color,
       description: description || null,
     });
@@ -89,24 +93,29 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-2xl space-y-6 px-4 py-6 md:space-y-8 md:px-6 md:py-10">
-        <p className="text-muted-foreground">Loading…</p>
+      <main className="min-h-screen bg-background">
+        <PageHeader icon={Settings} title="Settings" />
+        <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 md:space-y-8 md:px-6 md:py-10">
+          <p className="text-muted-foreground">Loading…</p>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-2xl space-y-6 px-4 py-6 md:space-y-8 md:px-6 md:py-10">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground">Manage your workspaces. Each workspace is a separate job or client.</p>
-        </div>
-        <Button onClick={() => setShowNew(true)} size="sm" className="gap-2">
-          <Plus className="size-4" /> New workspace
-        </Button>
-      </div>
+    <main className="min-h-screen bg-background">
+      <PageHeader
+        icon={Settings}
+        title="Settings"
+        subtitle="Manage your workspaces. Each workspace is a separate job or client."
+        actions={
+          <Button onClick={() => setShowNew(true)} size="sm" className="shrink-0 gap-2">
+            <Plus className="size-4" /> New workspace
+          </Button>
+        }
+      />
 
+      <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 md:space-y-8 md:px-6 md:py-10">
       {/* Workspace tabs */}
       {workspaces.length > 1 && (
         <div className="flex flex-wrap gap-2">
@@ -223,6 +232,14 @@ export default function SettingsPage() {
               <Input type="number" min={7} value={cycleDays} onChange={(e) => setCycleDays(e.target.value)} />
               <p className="text-xs text-muted-foreground">14 = biweekly, 7 = weekly.</p>
             </div>
+
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-1.5 text-sm font-medium">
+                <Calendar className="size-3.5" /> Payment terms (days)
+              </label>
+              <Input type="number" min={0} value={paymentTermsDays} onChange={(e) => setPaymentTermsDays(e.target.value)} />
+              <p className="text-xs text-muted-foreground">Due date on invoices = period end + this many days. 15 = Net 15.</p>
+            </div>
           </fieldset>
 
           <div className="flex gap-3">
@@ -327,6 +344,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </main>
   );

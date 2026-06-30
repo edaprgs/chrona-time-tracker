@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { Receipt } from "lucide-react";
 import { startOfDay, subDays } from "date-fns";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import InvoicePeriodPicker from "@/components/InvoicePeriodPicker";
 import InvoiceTable from "@/components/InvoiceTable";
+import PageHeader from "@/components/PageHeader";
 import { CURRENCIES } from "@/lib/currencies";
 
 function defaultPeriod(cycleDays: number) {
@@ -22,14 +24,14 @@ export default function InvoicePage() {
   const [displayCurrency, setDisplayCurrency] = useState("USD");
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:space-y-8 md:px-6 md:py-10 print:px-0 print:py-4">
-      <div className="print:hidden">
-        <h1 className="text-3xl font-bold">Invoice</h1>
-        <p className="text-muted-foreground">
-          Select a billing period to preview, export, or print your invoice.
-        </p>
-      </div>
+    <main className="min-h-screen bg-background print:bg-transparent">
+      <PageHeader
+        icon={Receipt}
+        title="Invoice"
+        subtitle="Select a billing period to preview, export, or print your invoice."
+      />
 
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:space-y-8 md:px-6 md:py-10 print:px-0 print:py-4">
       <div className="flex flex-wrap items-end gap-4 print:hidden">
         <div className="flex-1">
           <InvoicePeriodPicker
@@ -54,6 +56,7 @@ export default function InvoicePage() {
       </div>
 
       <InvoiceTable start={start} end={end} displayCurrency={displayCurrency} />
+      </div>
     </main>
   );
 }

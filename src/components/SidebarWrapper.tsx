@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 
-const HIDE_ON = ["/login"];
+const HIDE_ON = ["/login", "/"];
 
 export function useSidebarVisible() {
   const pathname = usePathname();

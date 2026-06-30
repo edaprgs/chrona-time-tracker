@@ -4,6 +4,7 @@ export const DEFAULTS = {
   HOURLY_RATE_USD:    7,
   WEEKLY_HOUR_CAP:    40,
   INVOICE_CYCLE_DAYS: 14,
+  PAYMENT_TERMS_DAYS: 15,
   WEEK_STARTS_ON:     1 as const,  // Monday
   WORKSPACE_NAME:     "My Workspace",
   CONTRACTOR_NAME:    "",

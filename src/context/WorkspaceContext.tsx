@@ -28,6 +28,7 @@ interface WorkspaceContextValue {
   hourlyRate:       number;
   weeklyHourCap:    number;
   invoiceCycleDays: number;
+  paymentTermsDays: number;
 }
 
 export interface NewWorkspaceData {
@@ -37,6 +38,7 @@ export interface NewWorkspaceData {
   hourly_rate_usd?: number;
   weekly_hour_cap?: number;
   invoice_cycle_days?: number;
+  payment_terms_days?: number;
   color?: string;
   description?: string;
 }
@@ -92,6 +94,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         hourly_rate_usd:   data.hourly_rate_usd   ?? DEFAULTS.HOURLY_RATE_USD,
         weekly_hour_cap:   data.weekly_hour_cap   ?? DEFAULTS.WEEKLY_HOUR_CAP,
         invoice_cycle_days: data.invoice_cycle_days ?? DEFAULTS.INVOICE_CYCLE_DAYS,
+        payment_terms_days: data.payment_terms_days ?? DEFAULTS.PAYMENT_TERMS_DAYS,
         color:             data.color             ?? "#ec4899",
         description:       data.description       ?? null,
         is_active:         true,
@@ -138,6 +141,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       hourlyRate:       active?.hourly_rate_usd   ?? DEFAULTS.HOURLY_RATE_USD,
       weeklyHourCap:    active?.weekly_hour_cap   ?? DEFAULTS.WEEKLY_HOUR_CAP,
       invoiceCycleDays: active?.invoice_cycle_days ?? DEFAULTS.INVOICE_CYCLE_DAYS,
+      paymentTermsDays: active?.payment_terms_days ?? DEFAULTS.PAYMENT_TERMS_DAYS,
     }}>
       {children}
     </WorkspaceContext.Provider>

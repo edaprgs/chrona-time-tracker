@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useMobileSidebar } from "@/context/MobileSidebarContext";
 
 const NAV_LINKS = [
-  { href: "/",         label: "Dashboard",  icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard",  icon: LayoutDashboard },
   { href: "/sessions", label: "Sessions",   icon: Table2          },
   { href: "/invoice",  label: "Invoice",    icon: Receipt         },
   { href: "/reports",  label: "Reports",    icon: BarChart2       },
@@ -166,25 +166,28 @@ export default function Sidebar() {
       </nav>
 
       {/* User footer */}
-      <div className="border-t p-3">
-        <div className="rounded-xl bg-muted/40 p-2">
-          <div className="flex items-center gap-2.5 px-1 py-1">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary ring-1 ring-primary/20">
-              {initials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold">{emailName}</p>
-              <p className="truncate text-[10px] text-muted-foreground">{user?.email}</p>
-            </div>
+      <div className="space-y-2 border-t p-3">
+        <Link
+          href="/profile"
+          onClick={close}
+          className="flex items-center gap-2.5 rounded-xl bg-muted/40 px-2.5 py-2 transition-colors hover:bg-muted/70"
+        >
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary ring-1 ring-primary/20">
+            {initials}
           </div>
-          <button
-            onClick={() => setShowLogoutConfirm(true)}
-            className="mt-1.5 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-          >
-            <LogOut className="size-4 shrink-0" />
-            Sign out
-          </button>
-        </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold">{emailName}</p>
+            <p className="truncate text-[10px] text-muted-foreground">{user?.email}</p>
+          </div>
+        </Link>
+
+        <button
+          onClick={() => setShowLogoutConfirm(true)}
+          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+        >
+          <LogOut className="size-4 shrink-0" />
+          Sign out
+        </button>
       </div>
     </div>
   );

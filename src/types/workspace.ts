@@ -7,6 +7,7 @@ export interface WorkspaceConfig {
   hourly_rate_usd: number;
   weekly_hour_cap: number;
   invoice_cycle_days: number;
+  payment_terms_days: number;
   is_active: boolean;
   color: string;
   description: string | null;
