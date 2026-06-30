@@ -7,6 +7,16 @@ const STORAGE_KEY = "chrona_timer";
 const SB_URL_KEY  = "chrona_sb_url";
 const SB_KEY_KEY  = "chrona_sb_anon";
 
+// Supabase stores the auth session under "sb-<project-ref>-auth-token".
+// Derive the ref from the hardcoded project URL so we only ever read the
+// token that actually belongs to THIS project — scanning for any
+// "sb-*-auth-token" key picks up stale sessions from other projects
+// (e.g. leftover localStorage from local dev against a different
+// Supabase instance), producing a JWT whose issuer doesn't match
+// supabaseUrl and gets rejected by every insert.
+const PROJECT_REF = SUPABASE_URL.match(/^https:\/\/([^.]+)\.supabase\.co/)?.[1];
+const AUTH_TOKEN_KEY = PROJECT_REF ? `sb-${PROJECT_REF}-auth-token` : null;
+
 function getSupabaseCredentials() {
   // The web app stores these as NEXT_PUBLIC env vars baked into the page.
   // We read them from a known meta tag that the app sets, or fall back to
@@ -15,19 +25,14 @@ function getSupabaseCredentials() {
   const key = localStorage.getItem(SB_KEY_KEY);
   if (url && key) return { supabaseUrl: url, supabaseAnonKey: key };
 
-  // Try to find the Supabase auth session in localStorage
-  // Supabase stores it as "sb-<ref>-auth-token"
   let accessToken = null;
   let userId      = null;
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith("sb-") && k.endsWith("-auth-token")) {
-      try {
-        const parsed = JSON.parse(localStorage.getItem(k) ?? "");
-        accessToken  = parsed?.access_token ?? null;
-        userId       = parsed?.user?.id ?? null;
-      } catch {}
-    }
+  if (AUTH_TOKEN_KEY) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(AUTH_TOKEN_KEY) ?? "");
+      accessToken  = parsed?.access_token ?? null;
+      userId       = parsed?.user?.id ?? null;
+    } catch {}
   }
   return { accessToken, userId, supabaseUrl: null, supabaseAnonKey: null };
 }
@@ -52,8 +57,11 @@ function sendToBackground(type) {
   chrome.runtime.sendMessage({
     type,
     ...creds,
-    ...(metaUrl ? { supabaseUrl: metaUrl } : {}),
-    ...(metaKey ? { supabaseAnonKey: metaKey } : {}),
+    // Fall back to the hardcoded constants — without this, PUNCH_IN/PAUSE/RESUME
+    // messages carry null supabaseUrl/supabaseAnonKey and overwrite the good
+    // values AUTO_AUTH set on page load, silently breaking every activity insert.
+    supabaseUrl:     metaUrl ?? creds.supabaseUrl ?? SUPABASE_URL,
+    supabaseAnonKey: metaKey ?? creds.supabaseAnonKey ?? SUPABASE_ANON_KEY,
     timerState,
   });
 }

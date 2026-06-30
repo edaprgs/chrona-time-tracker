@@ -255,5 +255,32 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (tab?.url) await handleTabChange(tab.url, tab.title ?? "");
 });
 
+// ─── Heartbeat ────────────────────────────────────────────────────────────────
+// handleTabChange only logs a tab's duration once you switch *away* from it —
+// a tab left open for minutes (e.g. reading docs on GitHub) never gets flushed
+// until you tab away. This alarm periodically logs and resets the in-progress
+// duration so long-lived tabs still get tracked.
+chrome.alarms.create("tabHeartbeat", { periodInMinutes: 0.5 });
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== "tabHeartbeat") return;
+  if (!state.isPunchedIn || state.isPaused) return;
+  if (!state.lastTabUrl || !state.lastTabTime) return;
+
+  const durationSeconds = Math.round((Date.now() - state.lastTabTime) / 1000);
+  if (durationSeconds >= 10) {
+    await logActivity({
+      eventType: "browser_visit",
+      note: state.lastTabNote,
+      url: state.lastTabUrl,
+      domain: getDomain(state.lastTabUrl),
+      category: getProductiveLabel(state.lastTabUrl),
+      durationSeconds,
+    });
+    state.lastTabTime = Date.now();
+    await persistState();
+  }
+});
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 loadState();
