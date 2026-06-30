@@ -7,7 +7,7 @@ import { useWorkspace } from "@/context/WorkspaceContext";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { exportSessionsCsv } from "@/lib/exportCsv";
 import { formatDuration } from "@/lib/session-utils";
-import { CURRENCIES } from "@/app/invoice/page";
+import { CURRENCIES } from "@/lib/currencies";
 
 import {
   Table, TableHeader, TableRow, TableHead, TableBody, TableCell,

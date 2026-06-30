@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
     lines_changed: e.lines_changed ?? null,
     git_branch:   e.git_branch ?? null,
     timestamp:    e.timestamp ?? new Date().toISOString(),
+    note:         e.note ?? null,
     metadata:     e.metadata ?? null,
   }));
 
@@ -57,21 +58,22 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ inserted: rows.length });
 }
 
-// The extension may also GET the currently active session ID so it can
-// attach events to the right session automatically.
+// The extension polls this to know whether to track activity at all.
+// The `sessions` table only gets a row at punch-out (after the confirmation
+// dialog), so it can never answer "are you punched in right now" — that's
+// what `live_status` is for, written by Timer.tsx on every transition.
 export async function GET(req: NextRequest) {
   const userId = await userIdFromApiKey(req);
   if (!userId) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
 
-  // Return the most-recent in-progress session (end_time IS NULL) for this user
   const { data } = await supabaseAdmin
-    .from("sessions")
-    .select("id, task, start_time")
+    .from("live_status")
+    .select("is_punched_in, is_paused")
     .eq("user_id", userId)
-    .is("end_time", null)
-    .order("start_time", { ascending: false })
-    .limit(1)
-    .single();
+    .maybeSingle();
 
-  return NextResponse.json({ session: data ?? null });
+  return NextResponse.json({
+    punchedIn: data?.is_punched_in ?? false,
+    paused:    data?.is_paused ?? false,
+  });
 }

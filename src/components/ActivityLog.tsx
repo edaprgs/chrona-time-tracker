@@ -15,7 +15,7 @@ import {
 import {
   Globe, Terminal, GitCommit, Bug, FlaskConical, FileCode2, FilePlus,
   FilePen, MessageSquare, LayoutGrid, BookOpen, Pencil, Trash2,
-  Plus, ClipboardList, ChevronDown, ChevronUp, Loader2,
+  Plus, ClipboardList, ChevronDown, ChevronUp, Loader2, GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +35,7 @@ const EVENT_META: Record<string, { label: string; icon: React.ElementType; color
   file_edit:       { label: "Edited file",   icon: FilePen,     color: "text-violet-500"  },
   terminal:        { label: "Terminal",      icon: Terminal,    color: "text-amber-500"   },
   git_commit:      { label: "Git commit",    icon: GitCommit,   color: "text-emerald-500" },
+  browser_visit:   { label: "Browser",       icon: Globe,       color: "text-sky-500"     },
   debug:           { label: "Debug",         icon: Bug,         color: "text-red-500"     },
   test_run:        { label: "Tests",         icon: FlaskConical,color: "text-orange-500"  },
   manual_browser:  { label: "Browser",       icon: Globe,       color: "text-sky-500"     },
@@ -49,9 +50,7 @@ function eventLabel(e: ActivityEvent): string {
   if (e.note) return e.note;
   if (e.file_path) {
     const parts = e.file_path.replace(/\\/g, "/").split("/");
-    const name  = parts.slice(-2).join("/");
-    const suffix = e.lines_changed ? ` (${e.lines_changed > 0 ? "+" : ""}${e.lines_changed} lines)` : "";
-    return `${name}${suffix}`;
+    return parts.slice(-2).join("/");
   }
   if (e.git_branch) return `Branch: ${e.git_branch}`;
   return meta?.label ?? e.event_type;
@@ -62,6 +61,13 @@ function dayLabel(iso: string) {
   if (isToday(d))     return "Today";
   if (isYesterday(d)) return "Yesterday";
   return format(d, "EEEE, MMM d");
+}
+
+function friendlyDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
 function groupByDay(events: ActivityEvent[]) {
@@ -209,6 +215,46 @@ export default function ActivityLog() {
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
+  // Live updates — new activity (from VS Code, Chrome, or manual entries)
+  // appears instantly without a page refresh via Supabase Realtime.
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`activity_events:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activity_events", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          setEvents((prev) => {
+            if (prev.some((e) => e.id === payload.new.id)) return prev;
+            return [payload.new as ActivityEvent, ...prev].sort(
+              (a, b) => b.timestamp.localeCompare(a.timestamp)
+            );
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "activity_events", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          setEvents((prev) => prev.map((e) => (e.id === payload.new.id ? (payload.new as ActivityEvent) : e)));
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "activity_events", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          setEvents((prev) => prev.filter((e) => e.id !== payload.old.id));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   async function handleAdd(type: ActivityEventType, note: string, time: string) {
     if (!user) return;
     const [h, m]  = time.split(":").map(Number);
@@ -274,7 +320,7 @@ export default function ActivityLog() {
               <div>
                 <h2 className="font-semibold">Activity Log</h2>
                 <p className="text-[11px] text-muted-foreground leading-none mt-0.5">
-                  Auto-tracked + manual entries · edit or delete before submitting
+                  What you worked on, tracked automatically — edit or delete anything before it's submitted
                 </p>
               </div>
             </div>
@@ -365,9 +411,29 @@ export default function ActivityLog() {
 
                               {/* Content */}
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-medium">
-                                  {eventLabel(event)}
-                                </p>
+                                <div className="flex items-center gap-2">
+                                  <p className={cn(
+                                    "truncate text-sm font-medium",
+                                    event.event_type === "git_commit" && "italic"
+                                  )}>
+                                    {event.event_type === "git_commit" ? `"${eventLabel(event)}"` : eventLabel(event)}
+                                  </p>
+                                  {typeof event.lines_changed === "number" && event.lines_changed !== 0 && (
+                                    <span className={cn(
+                                      "shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums",
+                                      event.lines_changed > 0
+                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                        : "bg-red-500/10 text-red-600 dark:text-red-400"
+                                    )}>
+                                      {event.lines_changed > 0 ? "+" : ""}{event.lines_changed}
+                                    </span>
+                                  )}
+                                  {event.event_type === "browser_visit" && typeof event.metadata?.duration_seconds === "number" && (
+                                    <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-[10px] font-semibold tabular-nums text-muted-foreground">
+                                      {friendlyDuration(event.metadata.duration_seconds as number)}
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
                                   <span className="tabular-nums">
                                     {format(new Date(event.timestamp), "h:mm a")}
@@ -383,7 +449,10 @@ export default function ActivityLog() {
                                   {event.git_branch && (
                                     <>
                                       <span className="opacity-40">·</span>
-                                      <span>{event.git_branch}</span>
+                                      <span className="inline-flex items-center gap-1">
+                                        <GitBranch className="size-2.5" />
+                                        {event.git_branch}
+                                      </span>
                                     </>
                                   )}
                                 </div>

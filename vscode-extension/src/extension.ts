@@ -8,15 +8,50 @@ interface ActivityEvent {
   lines_changed: number | null;
   git_branch: string | null;
   timestamp:  string;
+  note:       string | null;
   metadata:   Record<string, unknown> | null;
   session_id: string | null;
 }
 
+// ─── Minimal types for the built-in vscode.git extension's exported API ───────
+interface GitExtension {
+  getAPI(version: 1): GitAPI;
+}
+interface GitAPI {
+  repositories: GitRepository[];
+  onDidOpenRepository: vscode.Event<GitRepository>;
+}
+interface GitRepository {
+  rootUri: vscode.Uri;
+  state: GitRepositoryState;
+  log(options?: { maxEntries?: number }): Promise<GitCommit[]>;
+}
+interface GitRepositoryState {
+  HEAD: GitBranch | undefined;
+  onDidChange: vscode.Event<void>;
+}
+interface GitBranch {
+  name?: string;
+  commit?: string;
+}
+interface GitCommit {
+  hash: string;
+  message: string;
+}
+
 let queue: ActivityEvent[]  = [];
 let flushTimer: NodeJS.Timeout | null = null;
-let activeSessionId: string | null    = null;
+let isPunchedIn: boolean = false;
+let isPaused: boolean    = false;
 let statusBar: vscode.StatusBarItem;
 let pendingSignInState: string | null  = null;
+let currentBranch: string | null       = null;
+
+// Per-file edit accumulation — net lines changed since the last flush for
+// that file, so a burst of keystrokes becomes ONE consolidated log entry
+// instead of a separate row per change event.
+const pendingEdits = new Map<string, { delta: number; doc: vscode.TextDocument; timer: NodeJS.Timeout }>();
+const EDIT_IDLE_MS = 10_000; // flush a file's edit summary after 10s of no further changes to it
 
 export function activate(ctx: vscode.ExtensionContext) {
   statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -24,9 +59,14 @@ export function activate(ctx: vscode.ExtensionContext) {
   ctx.subscriptions.push(statusBar);
   refreshStatus();
 
-  // Poll for active session every 30s so the extension knows which session to attach events to
-  const sessionPoll = setInterval(fetchActiveSession, 30_000);
-  fetchActiveSession();
+  // Poll punch state every 10s — a short interval keeps the window where
+  // events get dropped right after punching in small (the sessions table
+  // only gets a row at punch-out, so this live_status poll is the only
+  // signal the extension has for "are you punched in right now").
+  const statusPoll = setInterval(fetchPunchState, 10_000);
+  fetchPunchState();
+
+  setupGitTracking();
 
   ctx.subscriptions.push(
     vscode.commands.registerCommand("chrona.enable",  () => {
@@ -57,26 +97,52 @@ export function activate(ctx: vscode.ExtensionContext) {
         getConfig().update("accessToken", key, true);
         vscode.window.showInformationMessage("Chrona: signed in successfully.");
         refreshStatus();
-        fetchActiveSession();
+        fetchPunchState();
       },
     }),
 
     // Track file opens
     vscode.workspace.onDidOpenTextDocument((doc) => {
-      enqueue({ event_type: "file_open", ...docMeta(doc), lines_changed: null });
+      if (doc.uri.scheme !== "file") return;
+      enqueue({ event_type: "file_open", ...docMeta(doc), lines_changed: null, note: null });
     }),
 
-    // Track file saves with line-count delta
+    // Track file saves
     vscode.workspace.onDidSaveTextDocument((doc) => {
-      enqueue({ event_type: "file_save", ...docMeta(doc), lines_changed: null });
+      if (doc.uri.scheme !== "file") return;
+      // A save flushes any pending edit summary for this file immediately,
+      // so the save event carries the accurate net line delta.
+      const pending = pendingEdits.get(doc.fileName);
+      const lines_changed = pending?.delta ?? null;
+      if (pending) {
+        clearTimeout(pending.timer);
+        pendingEdits.delete(doc.fileName);
+      }
+      enqueue({ event_type: "file_save", ...docMeta(doc), lines_changed, note: null });
     }),
 
-    // Track edits (debounced — only record significant changes)
+    // Track edits — accumulated per file, flushed as one consolidated entry
+    // after EDIT_IDLE_MS of inactivity on that file (or on save, above).
     vscode.workspace.onDidChangeTextDocument((e) => {
-      const delta = e.contentChanges.reduce((sum, c) => sum + Math.abs(c.text.split("\n").length - 1), 0);
-      if (delta > 0) {
-        enqueue({ event_type: "file_edit", ...docMeta(e.document), lines_changed: delta });
-      }
+      if (e.document.uri.scheme !== "file") return;
+      const delta = e.contentChanges.reduce((sum, c) => {
+        const added   = c.text.length ? c.text.split("\n").length - 1 || 1 : 0;
+        const removed = c.rangeLength > 0 ? c.range.end.line - c.range.start.line + 1 : 0;
+        return sum + added - removed;
+      }, 0);
+      if (delta === 0) return;
+
+      const key = e.document.fileName;
+      const existing = pendingEdits.get(key);
+      if (existing) clearTimeout(existing.timer);
+
+      const totalDelta = (existing?.delta ?? 0) + delta;
+      const timer = setTimeout(() => {
+        pendingEdits.delete(key);
+        enqueue({ event_type: "file_edit", ...docMeta(e.document), lines_changed: totalDelta, note: null });
+      }, EDIT_IDLE_MS);
+
+      pendingEdits.set(key, { delta: totalDelta, doc: e.document, timer });
     }),
 
     // Track terminal commands
@@ -87,17 +153,82 @@ export function activate(ctx: vscode.ExtensionContext) {
         workspace: workspaceName(),
         language: null,
         lines_changed: null,
-        git_branch: null,
+        git_branch: currentBranch,
+        note: term.name,
         metadata: { name: term.name },
       });
     })
   );
 
-  ctx.subscriptions.push({ dispose: () => { clearInterval(sessionPoll); if (flushTimer) clearTimeout(flushTimer); } });
+  ctx.subscriptions.push({
+    dispose: () => {
+      clearInterval(statusPoll);
+      if (flushTimer) clearTimeout(flushTimer);
+      for (const { timer } of pendingEdits.values()) clearTimeout(timer);
+    },
+  });
 }
 
 export function deactivate() {
+  // Flush any in-progress edit summaries immediately rather than losing them.
+  for (const [key, { delta, doc, timer }] of pendingEdits) {
+    clearTimeout(timer);
+    if (isPunchedIn && !isPaused) {
+      queue.push({ event_type: "file_edit", ...docMeta(doc), lines_changed: delta, note: null, timestamp: new Date().toISOString(), session_id: null });
+    }
+    pendingEdits.delete(key);
+  }
   flush();
+}
+
+// ─── Git tracking ───────────────────────────────────────────────────────────
+// Populates currentBranch for every event's git_branch field, and emits a
+// git_commit event (with the commit message as the note) whenever HEAD moves
+// to a new commit in any open repository.
+
+async function setupGitTracking() {
+  const gitExt = vscode.extensions.getExtension<GitExtension>("vscode.git");
+  if (!gitExt) return;
+
+  const exports = gitExt.isActive ? gitExt.exports : await gitExt.activate();
+  const api = exports.getAPI(1);
+
+  const watchedRepos = new Set<string>();
+  function watchRepo(repo: GitRepository) {
+    const key = repo.rootUri.toString();
+    if (watchedRepos.has(key)) return;
+    watchedRepos.add(key);
+
+    let lastCommitHash = repo.state.HEAD?.commit ?? null;
+    currentBranch = repo.state.HEAD?.name ?? currentBranch;
+
+    repo.state.onDidChange(async () => {
+      currentBranch = repo.state.HEAD?.name ?? currentBranch;
+      const newCommit = repo.state.HEAD?.commit ?? null;
+      if (!newCommit || newCommit === lastCommitHash) return;
+      lastCommitHash = newCommit;
+
+      try {
+        const [latest] = await repo.log({ maxEntries: 1 });
+        const message = latest?.message?.split("\n")[0] ?? null;
+        enqueue({
+          event_type: "git_commit",
+          file_path: null,
+          workspace: workspaceName(),
+          language: null,
+          lines_changed: null,
+          git_branch: currentBranch,
+          note: message,
+          metadata: { hash: newCommit },
+        });
+      } catch {
+        // repo.log can fail transiently right after a commit; skip silently
+      }
+    });
+  }
+
+  api.repositories.forEach(watchRepo);
+  api.onDidOpenRepository(watchRepo);
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -124,7 +255,7 @@ function docMeta(doc: vscode.TextDocument) {
     file_path: doc.fileName,
     workspace: workspaceName(),
     language:  doc.languageId,
-    git_branch: null, // populated asynchronously via git extension below
+    git_branch: currentBranch,
     metadata: null,
   };
 }
@@ -137,8 +268,11 @@ function workspaceName(): string | null {
 function enqueue(partial: Omit<ActivityEvent, "timestamp" | "session_id">) {
   if (!cfg<boolean>("enabled")) return;
   if (!cfg<string>("accessToken")) return;
+  // Only track while actually punched in and not paused — matches the
+  // Chrome extension's behavior.
+  if (!isPunchedIn || isPaused) return;
 
-  queue.push({ ...partial, timestamp: new Date().toISOString(), session_id: activeSessionId });
+  queue.push({ ...partial, timestamp: new Date().toISOString(), session_id: null });
 
   if (flushTimer) clearTimeout(flushTimer);
   flushTimer = setTimeout(flush, cfg<number>("debounceMs") ?? 5000);
@@ -169,7 +303,7 @@ async function flush() {
   refreshStatus();
 }
 
-async function fetchActiveSession() {
+async function fetchPunchState() {
   const token   = cfg<string>("accessToken");
   const baseUrl = (cfg<string>("apiUrl") || "http://localhost:3000").replace(/\/$/, "");
   if (!token) return;
@@ -179,8 +313,9 @@ async function fetchActiveSession() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
-      const json = await res.json() as { session?: { id: string } };
-      activeSessionId = json.session?.id ?? null;
+      const json = await res.json() as { punchedIn?: boolean; paused?: boolean };
+      isPunchedIn = json.punchedIn ?? false;
+      isPaused    = json.paused ?? false;
       refreshStatus();
     }
   } catch {}
@@ -197,9 +332,12 @@ function refreshStatus() {
   } else if (!enabled) {
     statusBar.text = "$(clock) Chrona: off";
     statusBar.color = undefined;
-  } else if (activeSessionId) {
+  } else if (isPunchedIn && !isPaused) {
     statusBar.text = "$(clock) Chrona: recording";
     statusBar.color = new vscode.ThemeColor("statusBarItem.prominentForeground");
+  } else if (isPunchedIn && isPaused) {
+    statusBar.text = "$(clock) Chrona: paused";
+    statusBar.color = new vscode.ThemeColor("statusBarItem.warningForeground");
   } else {
     statusBar.text = "$(clock) Chrona: idle";
     statusBar.color = undefined;
@@ -211,6 +349,6 @@ function showStatus() {
   const enabled = cfg<boolean>("enabled");
   const token = cfg<string>("accessToken");
   vscode.window.showInformationMessage(
-    `Chrona: ${enabled ? "enabled" : "disabled"} · session: ${activeSessionId ?? "none"} · token: ${token ? "set" : "not set"} · queued: ${queue.length}`
+    `Chrona: ${enabled ? "enabled" : "disabled"} · punched in: ${isPunchedIn} · paused: ${isPaused} · token: ${token ? "set" : "not set"} · queued: ${queue.length}`
   );
 }

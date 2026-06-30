@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import type { PauseEntry } from "@/types/activity";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { useToast } from "@/hooks/useToast";
+import { supabase } from "@/lib/supabase";
 
 const STORAGE_KEY = "chrona_timer";
 const IDLE_AUTO_PAUSE_MS = 30 * 60 * 1000; // auto-pause after 30 min idle
@@ -59,6 +60,23 @@ function clearState() {
 function broadcastTimerEvent(type: "punch-in" | "pause" | "resume" | "punch-out") {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(`chrona:${type}`, { detail: { storageKey: STORAGE_KEY } }));
+  pushLiveStatus(type);
+}
+
+// Real-time punch state for the VS Code extension to poll — the `sessions`
+// table only gets a row at punch-out, so it can't answer "are you punched in
+// right now." This writes a tiny status row on every transition instead.
+async function pushLiveStatus(type: "punch-in" | "pause" | "resume" | "punch-out") {
+  const { data } = await supabase.auth.getUser();
+  const userId = data.user?.id;
+  if (!userId) return;
+
+  const is_punched_in = type !== "punch-out";
+  const is_paused     = type === "pause";
+
+  await supabase
+    .from("live_status")
+    .upsert({ user_id: userId, is_punched_in, is_paused, updated_at: new Date().toISOString() });
 }
 
 function computeSeconds(state: TimerState): number {

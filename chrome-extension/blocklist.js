@@ -112,7 +112,8 @@ export function getProductiveLabel(url) {
   for (const [prod, label] of Object.entries(PRODUCTIVE_DOMAINS)) {
     if (domain === prod || domain.endsWith(`.${prod}`)) return label;
   }
-  // localhost is always productive
+  // localhost / the deployed Chrona app are always labeled clearly
   if (domain === "localhost" || domain === "127.0.0.1") return "Local Dev";
+  if (domain === "chrona-time-tracker.vercel.app") return "Chrona";
   return null; // unknown domain — still track it
 }

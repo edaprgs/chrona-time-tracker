@@ -72,7 +72,10 @@ async function handleTabChange(url, title) {
 
   const domain   = getDomain(url);
   const category = getProductiveLabel(url);
-  const note     = category ? `${category} — ${title}` : (title || domain);
+  // Keep this short and recognizable — the raw page title (e.g. a live
+  // timer string like "00:05:14 · Nudgine LLC") is confusing in the log,
+  // so just use the known category name or bare domain.
+  const note     = category || domain || title;
 
   // Log duration on previous tab before switching
   if (state.lastTabUrl && state.lastTabTime) {

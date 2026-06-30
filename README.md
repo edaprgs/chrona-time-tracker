@@ -64,6 +64,8 @@ Run each file **in order** in the Supabase SQL Editor:
 | `supabase/migrations/004_activity_note.sql` | Note column on activity_events |
 | `supabase/migrations/005_backfill_sessions.sql` | Fix old sessions missing user_id/workspace_id |
 | `supabase/migrations/006_api_keys.sql` | Long-lived personal API keys for the VS Code extension |
+| `supabase/migrations/007_realtime_activity.sql` | Enables Supabase Realtime on activity_events (live Activity Log updates) |
+| `supabase/migrations/008_live_status.sql` | Live punch-in/paused state, polled by the VS Code extension |
 
 ### 4. Start the dev server
 
@@ -98,7 +100,9 @@ Check `isPunchedIn`, `supabaseUrl`/`supabaseAnonKey` (must be non-null), and dec
 
 ## VS Code Extension
 
-Sends file edit, save, terminal, and git commit events to `/api/activity`. Requires `SUPABASE_SERVICE_ROLE_KEY` and the `api_keys` table (migration 006).
+Sends file edit, save, terminal, and git commit events to `/api/activity` — but only while you're actually punched in and not paused on Chrona (polls `live_status` every 10s). Requires `SUPABASE_SERVICE_ROLE_KEY`, the `api_keys` table (migration 006), and the `live_status` table (migration 008).
+
+Tracks: file opens, file saves (with net line delta), consolidated file edits (one entry per ~10s of editing activity on a file, not one per keystroke), terminal opens, and git commits (with the commit message and branch) via VS Code's built-in Git extension API.
 
 ### Install
 
@@ -158,6 +162,7 @@ src/
     useToast.tsx            # Toast notifications
   lib/
     apiKey.ts               # Get-or-create / regenerate long-lived API keys
+    currencies.ts           # Shared currency list (invoice page + table)
     exportCsv.ts            # CSV export
     session-utils.ts        # Midnight split, duration formatting
     supabase.ts             # Supabase client
@@ -190,3 +195,7 @@ supabase/migrations/        # Database migration SQL files
 - **Chrome extension token refresh**: `content.js` re-pushes the current Supabase session token to the background worker every 4 minutes, since Supabase's silent token refresh updates `localStorage` without firing a same-tab `storage` event — without this, the background worker's token goes stale after ~1 hour and tab-tracking inserts fail silently.
 - **Chrome extension tab logging**: `background.js` logs one `browser_visit` entry per tab visit — duration is flushed when you switch away from a tab (or punch out/pause), not on a periodic timer. A tab left open and untouched does not spam repeat entries.
 - **Chrome extension project-scoped auth**: `getSupabaseCredentials()` in `content.js` reads the auth token from the exact `sb-<project-ref>-auth-token` localStorage key (ref derived from the hardcoded `SUPABASE_URL`), not a wildcard scan — scanning for any `sb-*-auth-token` key picks up stale sessions from other Supabase projects, producing a JWT whose issuer doesn't match `supabaseUrl` and gets silently rejected on every insert. Likewise, `sendToBackground()` falls back to the hardcoded `SUPABASE_URL`/`SUPABASE_ANON_KEY` constants instead of passing through `null`, since a `PUNCH_IN` message with `null` credentials would overwrite the working values `AUTO_AUTH` had already set.
+- **Live punch state (`live_status` table)**: the `sessions` table only gets a row written at punch-out (after the confirmation dialog) — it can never answer "is the user punched in right now." `Timer.tsx` writes to `live_status` on every punch-in/pause/resume/punch-out, and the VS Code extension polls `/api/activity` (GET) every 10s to decide whether to track activity at all, matching the Chrome extension's punched-in gating.
+- **Realtime Activity Log**: `ActivityLog.tsx` subscribes to Supabase Realtime (`postgres_changes` on `activity_events`, filtered by `user_id`) so new VS Code/Chrome/manual entries appear instantly without a page refresh. Requires migration 007 and `REPLICA IDENTITY FULL` on the table so delete/update payloads include `user_id` for the filter to match.
+- **VS Code edit consolidation**: `onDidChangeTextDocument` accumulates a net line delta per file and flushes one `file_edit` event after 10s of inactivity on that file (or immediately on save) — logging a row per keystroke batch would spam the Activity Log.
+- **No circular imports**: `CURRENCIES` lives in `src/lib/currencies.ts`, imported by both `invoice/page.tsx` and `InvoiceTable.tsx` — previously `InvoiceTable.tsx` imported it from the page file that imports `InvoiceTable.tsx` itself, a circular dependency that risked intermittent "cannot access before initialization" errors under HMR.
