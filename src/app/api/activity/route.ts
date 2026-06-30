@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 // This endpoint is called by the VS Code companion extension.
-// Auth: the extension sends the user's Supabase session token in the Authorization header.
+// Auth: the extension sends a long-lived personal API key (from the
+// `api_keys` table) in the Authorization header — not the user's
+// short-lived Supabase session token, which expires every ~1 hour.
 
 // IMPORTANT: SUPABASE_SERVICE_ROLE_KEY must be set in .env.local (server-side only, never NEXT_PUBLIC_).
-// Without it, getUser() calls will fail and VS Code extension events will be rejected.
+// Without it, the api_keys lookup will fail and VS Code extension events will be rejected.
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.warn("[activity route] SUPABASE_SERVICE_ROLE_KEY not set — VS Code extension events will fail");
 }
@@ -15,23 +17,29 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export async function POST(req: NextRequest) {
+async function userIdFromApiKey(req: NextRequest): Promise<string | null> {
   const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!authHeader?.startsWith("Bearer ")) return null;
 
-  const token = authHeader.slice(7);
-  const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
-  if (authErr || !user) {
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-  }
+  const key = authHeader.slice(7);
+  const { data } = await supabaseAdmin
+    .from("api_keys")
+    .select("user_id")
+    .eq("key", key)
+    .single();
+
+  return data?.user_id ?? null;
+}
+
+export async function POST(req: NextRequest) {
+  const userId = await userIdFromApiKey(req);
+  if (!userId) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
 
   const body = await req.json();
   const events = Array.isArray(body) ? body : [body];
 
   const rows = events.map((e) => ({
-    user_id:      user.id,
+    user_id:      userId,
     session_id:   e.session_id ?? null,
     event_type:   e.event_type,
     file_path:    e.file_path ?? null,
@@ -52,19 +60,14 @@ export async function POST(req: NextRequest) {
 // The extension may also GET the currently active session ID so it can
 // attach events to the right session automatically.
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const token = authHeader.slice(7);
-  const { data: { user } } = await supabaseAdmin.auth.getUser(token);
-  if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+  const userId = await userIdFromApiKey(req);
+  if (!userId) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
 
   // Return the most-recent in-progress session (end_time IS NULL) for this user
   const { data } = await supabaseAdmin
     .from("sessions")
     .select("id, task, start_time")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .is("end_time", null)
     .order("start_time", { ascending: false })
     .limit(1)

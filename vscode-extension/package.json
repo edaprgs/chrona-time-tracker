@@ -6,7 +6,7 @@
   "publisher": "your-publisher-id",
   "engines": { "vscode": "^1.85.0" },
   "categories": ["Other"],
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": ["onStartupFinished", "onUri"],
   "main": "./out/extension.js",
   "contributes": {
     "configuration": {
@@ -46,6 +46,10 @@
       {
         "command": "chrona.showStatus",
         "title": "Chrona: Show Status"
+      },
+      {
+        "command": "chrona.signIn",
+        "title": "Chrona: Sign In"
       }
     ]
   },

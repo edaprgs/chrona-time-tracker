@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/useToast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Settings, DollarSign, Clock, Calendar, User, Briefcase, Trash2, Plus, Check, Globe, Code2, Copy, CheckCheck } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { getOrCreateApiKey, regenerateApiKey as regenerateApiKeyHelper } from "@/lib/apiKey";
 import NewWorkspaceDialog from "@/components/NewWorkspaceDialog";
 import { cn } from "@/lib/utils";
 
@@ -29,14 +29,24 @@ export default function SettingsPage() {
   const [description, setDescription]     = useState("");
   const [saving, setSaving]               = useState(false);
   const [showNew, setShowNew]             = useState(false);
-  const [accessToken, setAccessToken]     = useState("");
+  const [apiKey, setApiKey]               = useState("");
+  const [apiKeyLoading, setApiKeyLoading] = useState(true);
   const [copied, setCopied]               = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setAccessToken(data.session?.access_token ?? "");
+    getOrCreateApiKey().then((key) => {
+      setApiKey(key ?? "");
+      setApiKeyLoading(false);
     });
   }, []);
+
+  async function handleRegenerateApiKey() {
+    setApiKeyLoading(true);
+    const key = await regenerateApiKeyHelper();
+    setApiKey(key ?? "");
+    setApiKeyLoading(false);
+    toast("New API key generated. Update it in VS Code settings.", "default");
+  }
 
   useEffect(() => {
     if (!active) return;
@@ -272,31 +282,43 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground mt-0.5">
                 Sends file edits, saves, terminal activity, and git commits to your activity log.
               </p>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                <span className="font-medium text-foreground">Easiest setup:</span> in VS Code, open the Command Palette (<span className="font-mono">Cmd+Shift+P</span>) and run <span className="font-mono">Chrona: Sign In</span>. It opens this page in your browser, you approve, and the key is saved automatically — no copy/paste.
+              </p>
             </div>
 
-            {/* Access token */}
+            {/* API key */}
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground">Access Token</p>
+              <p className="text-xs font-medium text-muted-foreground">Or copy manually</p>
               <p className="text-xs text-muted-foreground">
-                Copy this into VS Code → Settings → <span className="font-mono">chrona.accessToken</span>
+                Paste this into VS Code → Settings → <span className="font-mono">chrona.accessToken</span>. Unlike a session token, this key doesn&apos;t expire.
               </p>
               <div className="flex items-center gap-2">
                 <div className="flex-1 min-w-0 rounded-lg border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground truncate">
-                  {accessToken || "Loading…"}
+                  {apiKeyLoading ? "Loading…" : apiKey || "Failed to generate key"}
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
                   className="shrink-0 gap-1.5"
-                  disabled={!accessToken}
+                  disabled={!apiKey}
                   onClick={() => {
-                    navigator.clipboard.writeText(accessToken);
+                    navigator.clipboard.writeText(apiKey);
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   }}
                 >
                   {copied ? <CheckCheck className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
                   {copied ? "Copied!" : "Copy"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="shrink-0 text-xs text-muted-foreground"
+                  disabled={apiKeyLoading}
+                  onClick={handleRegenerateApiKey}
+                >
+                  Regenerate
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground/60">

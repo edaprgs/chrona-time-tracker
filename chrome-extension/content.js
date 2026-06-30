@@ -89,3 +89,19 @@ window.addEventListener("chrona:punch-out", () => sendToBackground("PUNCH_OUT"))
     sendToBackground("PAUSE");
   }
 })();
+
+// Supabase silently rotates the access token in localStorage on refresh (~hourly),
+// but that doesn't fire a same-tab "storage" event, so re-push it periodically
+// or the background worker keeps using a stale token and inserts start failing silently.
+setInterval(() => {
+  const creds = getSupabaseCredentials();
+  if (creds.accessToken && creds.userId) {
+    chrome.runtime.sendMessage({
+      type: "AUTO_AUTH",
+      accessToken:     creds.accessToken,
+      userId:          creds.userId,
+      supabaseUrl:     SUPABASE_URL,
+      supabaseAnonKey: SUPABASE_ANON_KEY,
+    });
+  }
+}, 4 * 60 * 1000);

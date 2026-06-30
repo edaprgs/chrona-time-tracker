@@ -16,6 +16,7 @@ let queue: ActivityEvent[]  = [];
 let flushTimer: NodeJS.Timeout | null = null;
 let activeSessionId: string | null    = null;
 let statusBar: vscode.StatusBarItem;
+let pendingSignInState: string | null  = null;
 
 export function activate(ctx: vscode.ExtensionContext) {
   statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -39,6 +40,26 @@ export function activate(ctx: vscode.ExtensionContext) {
       refreshStatus();
     }),
     vscode.commands.registerCommand("chrona.showStatus", showStatus),
+    vscode.commands.registerCommand("chrona.signIn", signIn),
+
+    vscode.window.registerUriHandler({
+      handleUri(uri: vscode.Uri) {
+        const params = new URLSearchParams(uri.query);
+        const key   = params.get("key");
+        const state = params.get("state");
+
+        if (!key || !state || state !== pendingSignInState) {
+          vscode.window.showErrorMessage("Chrona sign-in failed: invalid or expired request.");
+          return;
+        }
+
+        pendingSignInState = null;
+        getConfig().update("accessToken", key, true);
+        vscode.window.showInformationMessage("Chrona: signed in successfully.");
+        refreshStatus();
+        fetchActiveSession();
+      },
+    }),
 
     // Track file opens
     vscode.workspace.onDidOpenTextDocument((doc) => {
@@ -83,6 +104,15 @@ export function deactivate() {
 
 function getConfig() {
   return vscode.workspace.getConfiguration("chrona");
+}
+
+async function signIn() {
+  const baseUrl = (cfg<string>("apiUrl") || "http://localhost:3000").replace(/\/$/, "");
+  pendingSignInState = Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+  const authUrl = vscode.Uri.parse(`${baseUrl}/vscode-auth?state=${pendingSignInState}`);
+  await vscode.env.openExternal(authUrl);
+  vscode.window.showInformationMessage("Chrona: approve the sign-in request in your browser.");
 }
 
 function cfg<T>(key: string): T {

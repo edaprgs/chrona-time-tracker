@@ -7,6 +7,7 @@ let queue = [];
 let flushTimer = null;
 let activeSessionId = null;
 let statusBar;
+let pendingSignInState = null;
 function activate(ctx) {
     statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     statusBar.command = "chrona.showStatus";
@@ -23,7 +24,22 @@ function activate(ctx) {
         getConfig().update("enabled", false, true);
         vscode.window.showInformationMessage("Chrona tracking disabled.");
         refreshStatus();
-    }), vscode.commands.registerCommand("chrona.showStatus", showStatus), 
+    }), vscode.commands.registerCommand("chrona.showStatus", showStatus), vscode.commands.registerCommand("chrona.signIn", signIn), vscode.window.registerUriHandler({
+        handleUri(uri) {
+            const params = new URLSearchParams(uri.query);
+            const key = params.get("key");
+            const state = params.get("state");
+            if (!key || !state || state !== pendingSignInState) {
+                vscode.window.showErrorMessage("Chrona sign-in failed: invalid or expired request.");
+                return;
+            }
+            pendingSignInState = null;
+            getConfig().update("accessToken", key, true);
+            vscode.window.showInformationMessage("Chrona: signed in successfully.");
+            refreshStatus();
+            fetchActiveSession();
+        },
+    }), 
     // Track file opens
     vscode.workspace.onDidOpenTextDocument((doc) => {
         enqueue({ event_type: "file_open", ...docMeta(doc), lines_changed: null });
@@ -60,6 +76,13 @@ function deactivate() {
 // ─── helpers ──────────────────────────────────────────────────────────────────
 function getConfig() {
     return vscode.workspace.getConfiguration("chrona");
+}
+async function signIn() {
+    const baseUrl = (cfg("apiUrl") || "http://localhost:3000").replace(/\/$/, "");
+    pendingSignInState = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const authUrl = vscode.Uri.parse(`${baseUrl}/vscode-auth?state=${pendingSignInState}`);
+    await vscode.env.openExternal(authUrl);
+    vscode.window.showInformationMessage("Chrona: approve the sign-in request in your browser.");
 }
 function cfg(key) {
     return getConfig().get(key);

@@ -63,6 +63,7 @@ Run each file **in order** in the Supabase SQL Editor:
 | `supabase/migrations/003_focus_score.sql` | Focus score column on sessions |
 | `supabase/migrations/004_activity_note.sql` | Note column on activity_events |
 | `supabase/migrations/005_backfill_sessions.sql` | Fix old sessions missing user_id/workspace_id |
+| `supabase/migrations/006_api_keys.sql` | Long-lived personal API keys for the VS Code extension |
 
 ### 4. Start the dev server
 
@@ -84,14 +85,23 @@ Tracks browser tabs (GitHub, Linear, Figma, Notion, etc.) while punched in. Bloc
 
 ## VS Code Extension
 
-Sends file edit, save, terminal, and git commit events to `/api/activity`. Requires `SUPABASE_SERVICE_ROLE_KEY`.
+Sends file edit, save, terminal, and git commit events to `/api/activity`. Requires `SUPABASE_SERVICE_ROLE_KEY` and the `api_keys` table (migration 006).
 
 ### Install
 
-1. `cd vscode-extension && npm install && npm run build`
-2. In VS Code: `Extensions` panel → `...` menu → **Install from VSIX** → select the built `.vsix` file
+1. `cd vscode-extension && npm install && npm run compile`
+2. `npx vsce package --allow-missing-repository` to build the `.vsix`
+3. In VS Code: `Extensions` panel → `...` menu → **Install from VSIX** → select the built `.vsix` file
    — or —
    Press `F5` inside the `vscode-extension/` folder to launch an Extension Development Host for testing
+
+### Authenticate
+
+Run **Chrona: Sign In** from the Command Palette (`Cmd+Shift+P`). It opens your browser to `/vscode-auth`, you click **Approve**, and a permanent personal API key (`chrona_...`) is saved into `chrona.accessToken` automatically — no copy/paste, and unlike a Supabase session token it never expires.
+
+To do it manually instead: Chrona → Settings → Connect Trackers → VS Code Extension → Copy, then paste into `chrona.accessToken` in VS Code settings.
+
+Also set `chrona.apiUrl` to your deployed URL (defaults to `http://localhost:3000`).
 
 ## Project Structure
 
@@ -103,8 +113,9 @@ src/
     notes/                  # Notes page (Google Keep-style)
     reports/                # Reports page (heatmap, charts)
     sessions/               # Sessions table page
-    settings/               # Workspace settings
+    settings/               # Workspace settings + API key management
     login/                  # Auth page
+    vscode-auth/            # One-click VS Code sign-in approval page
     page.tsx                # Dashboard
   components/
     DailyChart.tsx          # This week bar chart
@@ -133,6 +144,7 @@ src/
     useStats.ts             # Derived stats from sessions
     useToast.tsx            # Toast notifications
   lib/
+    apiKey.ts               # Get-or-create / regenerate long-lived API keys
     exportCsv.ts            # CSV export
     session-utils.ts        # Midnight split, duration formatting
     supabase.ts             # Supabase client
@@ -160,3 +172,6 @@ supabase/migrations/        # Database migration SQL files
 - **Week boundary**: Weeks start on **Monday** (`WEEK_STARTS_ON = 1` in `src/lib/constants.ts`). The weekly cap resets automatically each Monday.
 - **PR status**: Stored on the `sessions` table as a string enum (`open | in_review | approved | merged | done`). Changed via dropdown in the sessions table with optimistic update.
 - **Mobile sidebar**: `MobileSidebarContext` shared between `Header` (hamburger toggle) and `Sidebar` (overlay + close button). Desktop sidebar is `sticky` in normal document flow so `flex-1` content is naturally width-bounded.
+- **Timer hydration**: All timer state read from `localStorage` (recording/paused/idle, elapsed time, button labels) is gated behind a `mounted` flag in `Timer.tsx`. The server always renders the neutral/idle markup; the real state applies after the client mounts, avoiding React hydration mismatches.
+- **VS Code auth**: `/api/activity` validates requests against the `api_keys` table (a permanent per-user token), not a Supabase session JWT — session tokens expire hourly and broke the integration repeatedly. The `chrona.signIn` VS Code command opens `/vscode-auth` in the browser, which on approval redirects to `vscode://<publisher>.<name>/auth?key=...` to hand the key back to the extension via its registered URI handler.
+- **Chrome extension token refresh**: `content.js` re-pushes the current Supabase session token to the background worker every 4 minutes, since Supabase's silent token refresh updates `localStorage` without firing a same-tab `storage` event — without this, the background worker's token goes stale after ~1 hour and tab-tracking inserts fail silently.
