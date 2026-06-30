@@ -4,21 +4,23 @@ A personal SaaS-ready time tracker built with Next.js, Supabase, and Tailwind CS
 
 ## Features
 
+- **Landing Page** — public marketing page at `/` with an auto-playing live demo of the timer + activity tracking
 - **Timer** — punch in/out with pause support, idle auto-pause after 30 min, midnight auto-split
 - **Focus Score** — calculated per session from pause logs (0–100%)
-- **Multi-workspace** — separate workspaces per client or project, each with its own rate and settings
-- **Activity Log** — auto-tracked VS Code events + Chrome browser visits + manual entries
+- **Multi-workspace** — one account, unlimited workspaces — separate workspace per client or project, each with its own rate and settings
+- **Activity Log** — auto-tracked VS Code events + Chrome browser visits + manual entries, updates live via Supabase Realtime (no refresh needed)
 - **Streak Tracker** — consecutive days worked, displayed in header
 - **Weekly Cap & Overtime Alert** — set a weekly hour cap; banner + toast fire when you exceed it
-- **Sessions Table** — search, filter, sort, paginate, edit, delete all sessions; PR status dropdown per session
-- **Invoice Page** — date-range picker, live exchange rates (USD → PHP and others), printable PDF invoice
-- **CSV Export** — invoice-ready CSV with USD earnings
+- **Sessions Table** — search, filter, sort, paginate; View/Edit/Delete dropdown per row; separate PR link and editable PR status columns
+- **Invoice Page** — date-range picker, live exchange rates (USD → PHP and others), invoice number + due date (configurable payment terms), printable PDF invoice, paginated on screen (print always includes the full period)
+- **CSV Export** — invoice-ready CSV with USD + converted-currency amounts, focus score, and invoice metadata
 - **Reports Page** — all-time summary, GitHub-style activity heatmap, top tasks bar chart, 6-month trend
 - **Notes Page** — Google Keep-style notes with rich text (Tiptap), checklists, color backgrounds, labels, pin, image upload, emoji picker, delete confirmation
-- **Dashboard** — stat cards, daily/weekly charts, top tasks this week, notes widget, recent activity
-- **Mobile Responsive** — hamburger nav, collapsible sidebar overlay, responsive grids throughout
+- **Dashboard** (`/dashboard`) — stat cards, daily/weekly charts, top tasks this week, notes widget, recent activity
+- **Profile Page** — account details, workspace/hours summary, change password
+- **Mobile Responsive** — hamburger nav (on every page via a shared header), collapsible sidebar overlay, responsive grids, horizontally-scrollable tables instead of broken layouts
 - **Chrome Extension** — tracks productive browser tabs while punched in
-- **VS Code Extension** — sends file edit, save, terminal, and git commit events to the activity log
+- **VS Code Extension** — tracks file edits/saves, terminal opens, and git commits (with branch + message) while punched in, with one-click sign-in
 
 ## Tech Stack
 
@@ -66,6 +68,7 @@ Run each file **in order** in the Supabase SQL Editor:
 | `supabase/migrations/006_api_keys.sql` | Long-lived personal API keys for the VS Code extension |
 | `supabase/migrations/007_realtime_activity.sql` | Enables Supabase Realtime on activity_events (live Activity Log updates) |
 | `supabase/migrations/008_live_status.sql` | Live punch-in/paused state, polled by the VS Code extension |
+| `supabase/migrations/009_payment_terms.sql` | `payment_terms_days` on workspace_config, used for invoice due dates |
 
 ### 4. Start the dev server
 
@@ -126,15 +129,18 @@ Also set `chrona.apiUrl` to your deployed URL (defaults to `http://localhost:300
 src/
   app/
     api/activity/           # VS Code extension webhook
+    dashboard/               # Authenticated app home (was at / before the landing page)
     invoice/                # Invoice page with exchange rates
     notes/                  # Notes page (Google Keep-style)
+    profile/                # Account details + change password
     reports/                # Reports page (heatmap, charts)
     sessions/               # Sessions table page
     settings/               # Workspace settings + API key management
     login/                  # Auth page
     vscode-auth/            # One-click VS Code sign-in approval page
-    page.tsx                # Dashboard
+    page.tsx                # Public landing page (root /)
   components/
+    landing/LandingDemo.tsx # Self-contained auto-playing hero demo widget
     DailyChart.tsx          # This week bar chart
     HoursHeatmap.tsx        # 52-week activity heatmap
     MonthlyTrend.tsx        # 6-month bar chart
@@ -142,15 +148,19 @@ src/
     NoteEditorDialog.tsx    # Tiptap rich text note editor
     NotesWidget.tsx         # Dashboard notes shortcut widget
     OvertimeBanner.tsx      # Red banner when weekly cap exceeded
+    PageHeader.tsx          # Shared page header — title, subtitle, actions, mobile hamburger
+    Pagination.tsx          # Shared "1 2 3 … N" pagination control
     ReportsSummary.tsx      # All-time stats cards on reports page
-    SessionsTable.tsx       # Full sessions table with filters
+    SessionsTable.tsx       # Full sessions table with filters + view/edit/delete dropdown
     Sidebar.tsx             # Nav sidebar (desktop sticky + mobile overlay)
     StatCards.tsx           # Dashboard KPI strip
     TaskBreakdown.tsx       # Top tasks horizontal bar chart
     Timer.tsx               # Punch in/out timer
     TopTasks.tsx            # This week's top tasks widget
+    ViewSessionDialog.tsx   # Read-only session detail dialog
     WeeklyProgress.tsx      # Weekly progress ring/chart
-    Header.tsx              # Page header with greeting + hamburger
+    Header.tsx              # Dashboard header with greeting + hamburger
+    ui/dropdown-menu.tsx    # Base UI menu wrapper (session row actions)
   context/
     AuthContext.tsx          # Supabase auth
     WorkspaceContext.tsx     # Per-workspace config
@@ -170,6 +180,7 @@ src/
   types/
     session.ts
     activity.ts
+    workspace.ts
 chrome-extension/           # Chrome browser activity tracker
 vscode-extension/           # VS Code activity tracker
 supabase/migrations/        # Database migration SQL files
@@ -199,3 +210,7 @@ supabase/migrations/        # Database migration SQL files
 - **Realtime Activity Log**: `ActivityLog.tsx` subscribes to Supabase Realtime (`postgres_changes` on `activity_events`, filtered by `user_id`) so new VS Code/Chrome/manual entries appear instantly without a page refresh. Requires migration 007 and `REPLICA IDENTITY FULL` on the table so delete/update payloads include `user_id` for the filter to match.
 - **VS Code edit consolidation**: `onDidChangeTextDocument` accumulates a net line delta per file and flushes one `file_edit` event after 10s of inactivity on that file (or immediately on save) — logging a row per keystroke batch would spam the Activity Log.
 - **No circular imports**: `CURRENCIES` lives in `src/lib/currencies.ts`, imported by both `invoice/page.tsx` and `InvoiceTable.tsx` — previously `InvoiceTable.tsx` imported it from the page file that imports `InvoiceTable.tsx` itself, a circular dependency that risked intermittent "cannot access before initialization" errors under HMR.
+- **Landing page vs. dashboard split**: `/` is a public marketing page (`AuthContext`'s `PUBLIC_PATHS`); the authenticated app lives at `/dashboard`. Logging in or visiting `/`/`/login` while already signed in redirects to `/dashboard`. `SidebarWrapper` hides the app sidebar on `/` and `/login` only.
+- **Shared `PageHeader`**: every page except the dashboard (which has its own richer `Header` with a greeting/streak) and the landing page uses `PageHeader` for title/subtitle/actions and the mobile hamburger. Before this existed, several pages (Reports, Notes) had hand-rolled header bars missing the hamburger entirely, and others (Sessions, Invoice, Settings) had no header bar at all — both meant broken mobile nav on most pages.
+- **HoursHeatmap cell radius**: cells use a fixed `rounded-[2px]`, not the semantic `rounded-sm` token — at the heatmap's 12px cell size, `rounded-sm` resolves through the theme's `--radius` variable to a radius larger than half the box, rendering as a circle instead of a small square.
+- **Invoice number / due date**: computed deterministically from the workspace name + period start (`INV-<3-letter-slug>-<yyyyMMdd>`), so reopening the same date range always shows the same invoice number rather than a random one. Due date = period end + `payment_terms_days` (workspace setting, migration 009).
