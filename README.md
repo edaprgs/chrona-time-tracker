@@ -1,36 +1,87 @@
 # Chrona — Time Tracker
 
-A personal SaaS-ready time tracker built with Next.js, Supabase, and Tailwind CSS. Track work sessions, log activity, manage workspaces, and export invoices.
+A SaaS-ready time tracker for contractors and freelancers. Track work sessions with auto-captured VS Code + browser activity, generate focus-scored reports, and export client-ready invoices — all in one place.
+
+Built with **Next.js 16**, **Supabase**, and **Tailwind CSS v4**.
+
+---
 
 ## Features
 
-- **Landing Page** — public marketing page at `/` with an auto-playing live demo of the timer + activity tracking
-- **Timer** — punch in/out with pause support, idle auto-pause after 30 min, midnight auto-split
-- **Focus Score** — calculated per session from pause logs (0–100%)
-- **Multi-workspace** — one account, unlimited workspaces — separate workspace per client or project, each with its own rate and settings
-- **Activity Log** — auto-tracked VS Code events + Chrome browser visits + manual entries, updates live via Supabase Realtime (no refresh needed)
-- **Streak Tracker** — consecutive days worked, displayed in header
-- **Weekly Cap & Overtime Alert** — set a weekly hour cap; banner + toast fire when you exceed it
-- **Sessions Table** — search, filter, sort, paginate; View/Edit/Delete dropdown per row; separate PR link and editable PR status columns
-- **Invoice Page** — date-range picker, live exchange rates (USD → PHP and others), invoice number + due date (configurable payment terms), printable PDF invoice, paginated on screen (print always includes the full period)
-- **CSV Export** — invoice-ready CSV with USD + converted-currency amounts, focus score, and invoice metadata
-- **Reports Page** — all-time summary, GitHub-style activity heatmap, top tasks bar chart, 6-month trend
-- **Notes Page** — Google Keep-style notes with rich text (Tiptap), checklists, color backgrounds, labels, pin, image upload, emoji picker, delete confirmation
-- **Dashboard** (`/dashboard`) — stat cards, daily/weekly charts, top tasks this week, notes widget, recent activity
-- **Profile Page** — account details, workspace/hours summary, change password
-- **Mobile Responsive** — hamburger nav (on every page via a shared header), collapsible sidebar overlay, responsive grids, horizontally-scrollable tables instead of broken layouts
-- **Chrome Extension** — tracks productive browser tabs while punched in
-- **VS Code Extension** — tracks file edits/saves, terminal opens, and git commits (with branch + message) while punched in, with one-click sign-in
+### Timer & Sessions
+- **One-click punch in/out** with pause support and a logged pause reason per break
+- **Idle auto-pause** after 30 min of inactivity
+- **Midnight auto-split** — sessions crossing midnight are split into two accurate records
+- **Focus score** (0–100%) calculated per session from active vs. pause time
+- **Session edit/view dialog** — receipt-style pause breakdown, PR link, focus score, split indicator
+- **Optimistic updates** — edits apply instantly without table flicker
+
+### Activity Tracking (Extensions)
+- **VS Code extension** — logs file edits (net line delta), file saves, terminal opens, and git commits (branch + message) while punched in. One-click browser sign-in via `/vscode-auth`
+- **Chrome extension** — tracks productive tabs (GitHub, Linear, Figma, Notion, etc.) while punched in; blocks social/entertainment sites. Tab duration flushed on switch-away, not periodic
+- **Realtime activity log** — all events appear instantly via Supabase Realtime (no refresh), tabbed by source, searchable
+
+### Dashboard
+- **Stat cards** — today's hours, this week, current streak, avg focus score
+- **Daily bar chart** — this week's hours per day; off-days (based on work schedule) shown greyed out
+- **Weekly progress ring** — hours vs. weekly cap, overflow highlighted
+- **Overtime banner** — fires when weekly cap is exceeded
+- **Top tasks** — most-logged tasks this week with time breakdown
+- **Notes widget** — Google Keep-style notes shortcut on the dashboard
+- **Recent activity** — today + yesterday sessions with focus score and time range
+
+### Reports
+- **All-time summary** — total hours, sessions, avg session length, best day
+- **GitHub-style heatmap** — 52-week activity grid
+- **Top tasks bar chart** — all-time task breakdown
+- **6-month trend** — monthly hours over the past 6 months
+
+### Invoices
+- **Date range picker** — prev/next navigation, any custom period
+- **Live exchange rates** — 15+ currencies via Frankfurter API (server-proxied, 5-min cache)
+- **Summary cards** — total hours, rate, amount due in chosen currency + PHP equivalent
+- **Itemised table** — date, task + description (truncated), duration, amount; no horizontal scroll
+- **Auto invoice number** — deterministic from workspace slug + period start (`INV-XYZ-20250101`)
+- **Due date** — period end + configurable payment terms (Net 7/14/30/custom)
+- **Print to PDF** — browser-native print with printable invoice header (contractor, client, totals)
+- **CSV export** — all sessions with USD + converted-currency amounts, focus score, invoice metadata
+
+### Workspace & Settings
+- **Multi-workspace** — unlimited workspaces per account, each with its own:
+  - Hourly rate and weekly hour cap
+  - Work schedule (start/end day of week, e.g. Mon–Fri or Wed–Sun)
+  - Invoice currency, payment terms, contractor name, client name
+  - Long-lived personal API key for the VS Code extension
+- **Work schedule** — daily target hours derived from cap ÷ work days; daily chart marks off-days
+
+### Notes
+- **Google Keep-style** — create, edit, pin, color, label, delete notes
+- **Rich text** — Tiptap editor with checklists, bold, italic, links, image upload, emoji picker
+- **Stored in localStorage** — no DB migration needed
+
+### UI & Navigation
+- **Collapsible desktop sidebar** — icon-only when collapsed, state persisted in localStorage
+- **Mobile-first** — full-screen sidebar overlay with body scroll lock, responsive grids, adaptive text sizes
+- **Multi-currency calculator widget** — convert between 15+ currencies using live rates
+- **Shared `PageHeader`** — title, subtitle, mobile hamburger on every page
+- **Dark mode** — via CSS variables and Tailwind dark utilities
+
+---
 
 ## Tech Stack
 
-- **Framework**: Next.js (App Router)
-- **Database**: Supabase (PostgreSQL + Auth + Row Level Security)
-- **Styling**: Tailwind CSS v4 + shadcn/ui (Base UI)
-- **Rich Text**: Tiptap (StarterKit, TaskList, Link, Image, Placeholder)
-- **Charts**: Recharts
-- **State**: React Context (Auth, Workspace, Sessions, MobileSidebar)
-- **Notes Storage**: localStorage (no DB table required)
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Database | Supabase (PostgreSQL + Auth + RLS) |
+| Styling | Tailwind CSS v4 + shadcn/ui (Base UI) |
+| Rich Text | Tiptap (StarterKit, TaskList, Link, Image) |
+| Charts | Recharts |
+| Exchange Rates | Frankfurter API (proxied via `/api/exchange-rate`) |
+| State | React Context (Auth, Workspace, Sessions, MobileSidebar) |
+| Notes Storage | localStorage (no DB table) |
+
+---
 
 ## Getting Started
 
@@ -52,23 +103,24 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-> `SUPABASE_SERVICE_ROLE_KEY` is required for the VS Code extension activity endpoint. Find it in Supabase → Project Settings → API.
+> `SUPABASE_SERVICE_ROLE_KEY` is required for the VS Code extension activity endpoint. Find it in Supabase → Project Settings → API. Never expose it client-side.
 
 ### 3. Run database migrations
 
 Run each file **in order** in the Supabase SQL Editor:
 
 | File | Description |
-|------|-------------|
-| `supabase/migrations/001_schema.sql` | Base tables, RLS, indexes |
-| `supabase/migrations/002_multi_workspace.sql` | Multi-workspace support |
-| `supabase/migrations/003_focus_score.sql` | Focus score column on sessions |
-| `supabase/migrations/004_activity_note.sql` | Note column on activity_events |
-| `supabase/migrations/005_backfill_sessions.sql` | Fix old sessions missing user_id/workspace_id |
-| `supabase/migrations/006_api_keys.sql` | Long-lived personal API keys for the VS Code extension |
-| `supabase/migrations/007_realtime_activity.sql` | Enables Supabase Realtime on activity_events (live Activity Log updates) |
-| `supabase/migrations/008_live_status.sql` | Live punch-in/paused state, polled by the VS Code extension |
-| `supabase/migrations/009_payment_terms.sql` | `payment_terms_days` on workspace_config, used for invoice due dates |
+|---|---|
+| `001_schema.sql` | Base tables, RLS, indexes |
+| `002_multi_workspace.sql` | Multi-workspace support |
+| `003_focus_score.sql` | Focus score column on sessions |
+| `004_activity_note.sql` | Note column on activity_events |
+| `005_backfill_sessions.sql` | Fix old sessions missing user_id/workspace_id |
+| `006_api_keys.sql` | Long-lived personal API keys for VS Code extension |
+| `007_realtime_activity.sql` | Supabase Realtime on activity_events |
+| `008_live_status.sql` | Live punch-in/paused state for VS Code extension |
+| `009_payment_terms.sql` | Payment terms days on workspace_config |
+| `010_work_schedule.sql` | Work start/end day on workspace_config |
 
 ### 4. Start the dev server
 
@@ -78,50 +130,56 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+---
+
 ## Chrome Extension
 
-Tracks browser tabs (GitHub, Linear, Figma, Notion, etc.) while punched in. Blocks social and entertainment sites automatically.
+Tracks productive browser tabs (GitHub, Linear, Figma, Notion, etc.) while punched in.
 
 ### Install
 
-1. Open `chrome-extension/config.js` — fill in your Supabase URL and anon key (must match the same project as `content.js`'s hardcoded `SUPABASE_URL`/`SUPABASE_ANON_KEY`)
-2. Go to `chrome://extensions` → Enable **Developer mode** → **Load unpacked** → select the `chrome-extension/` folder
-3. Sign into Chrona on the matching origin — the extension connects automatically by reading the `sb-<project-ref>-auth-token` key from `localStorage`
+1. Open `chrome-extension/config.js` — fill in your Supabase URL and anon key
+2. Go to `chrome://extensions` → Enable **Developer mode** → **Load unpacked** → select `chrome-extension/`
+3. Sign into Chrona — the extension connects automatically by reading the Supabase auth token from `localStorage`
 
-### After every reload
+### After every extension reload
 
-Any time you reload the extension from `chrome://extensions` (e.g. after editing `background.js`/`content.js`), **hard-refresh every already-open Chrona tab**. Old content script instances become orphaned ("Extension context invalidated") and silently stop sending punch-in/tab events until the page is refreshed.
+Hard-refresh every open Chrona tab after reloading from `chrome://extensions`. Old content script instances become orphaned and stop sending events.
 
 ### Debugging
 
-Open `chrome://extensions` → Chrona Tracker → **service worker** link to inspect the background worker directly. To check live state without relying on self-messaging (unreliable from the worker's own console):
+Open `chrome://extensions` → Chrona Tracker → **service worker** link. To inspect live state:
+
 ```js
 const r = await chrome.storage.session.get("trackerState");
-console.log(r);
+console.log(r); // check isPunchedIn, supabaseUrl, supabaseAnonKey
 ```
-Check `isPunchedIn`, `supabaseUrl`/`supabaseAnonKey` (must be non-null), and decode `accessToken` to confirm its `iss` claim matches `supabaseUrl`'s project ref.
+
+---
 
 ## VS Code Extension
 
-Sends file edit, save, terminal, and git commit events to `/api/activity` — but only while you're actually punched in and not paused on Chrona (polls `live_status` every 10s). Requires `SUPABASE_SERVICE_ROLE_KEY`, the `api_keys` table (migration 006), and the `live_status` table (migration 008).
-
-Tracks: file opens, file saves (with net line delta), consolidated file edits (one entry per ~10s of editing activity on a file, not one per keystroke), terminal opens, and git commits (with the commit message and branch) via VS Code's built-in Git extension API.
+Logs file edits, saves, terminal opens, and git commits to `/api/activity` while punched in and not paused.
 
 ### Install
 
-1. `cd vscode-extension && npm install && npm run compile`
-2. `npx vsce package --allow-missing-repository` to build the `.vsix`
-3. In VS Code: `Extensions` panel → `...` menu → **Install from VSIX** → select the built `.vsix` file
-   — or —
-   Press `F5` inside the `vscode-extension/` folder to launch an Extension Development Host for testing
+```bash
+cd vscode-extension
+npm install && npm run compile
+npx vsce package --allow-missing-repository
+```
+
+In VS Code: Extensions panel → `...` → **Install from VSIX** → select the built `.vsix`.
+
+Or press `F5` inside `vscode-extension/` to launch an Extension Development Host.
 
 ### Authenticate
 
-Run **Chrona: Sign In** from the Command Palette (`Cmd+Shift+P`). It opens your browser to `/vscode-auth`, you click **Approve**, and a permanent personal API key (`chrona_...`) is saved into `chrona.accessToken` automatically — no copy/paste, and unlike a Supabase session token it never expires.
-
-To do it manually instead: Chrona → Settings → Connect Trackers → VS Code Extension → Copy, then paste into `chrona.accessToken` in VS Code settings.
+Run **Chrona: Sign In** from the Command Palette (`Cmd+Shift+P`). It opens `/vscode-auth` in the browser — click **Approve** and a permanent personal API key is saved to `chrona.accessToken` automatically.
 
 Also set `chrona.apiUrl` to your deployed URL (defaults to `http://localhost:3000`).
+
+---
 
 ## Project Structure
 
@@ -129,88 +187,90 @@ Also set `chrona.apiUrl` to your deployed URL (defaults to `http://localhost:300
 src/
   app/
     api/activity/           # VS Code extension webhook
-    dashboard/               # Authenticated app home (was at / before the landing page)
+    api/exchange-rate/      # Server-side Frankfurter proxy (avoids CORS)
+    dashboard/              # Authenticated app home
     invoice/                # Invoice page with exchange rates
-    notes/                  # Notes page (Google Keep-style)
+    notes/                  # Google Keep-style notes
     profile/                # Account details + change password
-    reports/                # Reports page (heatmap, charts)
-    sessions/               # Sessions table page
-    settings/               # Workspace settings + API key management
+    reports/                # Heatmap, charts, all-time stats
+    sessions/               # Sessions table with filters + actions
+    settings/               # Workspace settings, schedule, API key
     login/                  # Auth page
-    vscode-auth/            # One-click VS Code sign-in approval page
-    page.tsx                # Public landing page (root /)
+    vscode-auth/            # One-click VS Code sign-in approval
+    page.tsx                # Public landing page
   components/
-    landing/LandingDemo.tsx # Self-contained auto-playing hero demo widget
-    DailyChart.tsx          # This week bar chart
+    landing/LandingDemo.tsx # Auto-playing hero demo widget
+    ActivityLog.tsx         # Realtime activity log (tabbed)
+    CalculatorWidget.tsx    # Multi-currency converter
+    DailyChart.tsx          # This week bar chart (work/off day aware)
+    Header.tsx              # Dashboard header with greeting + streak
     HoursHeatmap.tsx        # 52-week activity heatmap
-    MonthlyTrend.tsx        # 6-month bar chart
-    NoteCard.tsx            # Note card with delete confirm
-    NoteEditorDialog.tsx    # Tiptap rich text note editor
-    NotesWidget.tsx         # Dashboard notes shortcut widget
-    OvertimeBanner.tsx      # Red banner when weekly cap exceeded
-    PageHeader.tsx          # Shared page header — title, subtitle, actions, mobile hamburger
-    Pagination.tsx          # Shared "1 2 3 … N" pagination control
-    ReportsSummary.tsx      # All-time stats cards on reports page
-    SessionsTable.tsx       # Full sessions table with filters + view/edit/delete dropdown
-    Sidebar.tsx             # Nav sidebar (desktop sticky + mobile overlay)
+    InvoicePeriodPicker.tsx # Date range picker with prev/next
+    InvoiceTable.tsx        # Itemised invoice table (no x-scroll)
+    NotesWidget.tsx         # Dashboard notes shortcut
+    OvertimeBanner.tsx      # Alert when weekly cap exceeded
+    PageHeader.tsx          # Shared page header with mobile hamburger
+    Pagination.tsx          # Shared pagination control
+    RecentActivity.tsx      # Today + yesterday sessions card
+    ReportsSummary.tsx      # All-time stat cards
+    SessionDialog.tsx       # Create/edit session dialog
+    SessionsTable.tsx       # Sessions table with filters + actions
+    Sidebar.tsx             # Collapsible nav sidebar
     StatCards.tsx           # Dashboard KPI strip
-    TaskBreakdown.tsx       # Top tasks horizontal bar chart
     Timer.tsx               # Punch in/out timer
     TopTasks.tsx            # This week's top tasks widget
-    ViewSessionDialog.tsx   # Read-only session detail dialog
-    WeeklyProgress.tsx      # Weekly progress ring/chart
-    Header.tsx              # Dashboard header with greeting + hamburger
-    ui/dropdown-menu.tsx    # Base UI menu wrapper (session row actions)
+    ViewSessionDialog.tsx   # Read-only session detail + pause log
+    WeeklyProgress.tsx      # Weekly progress ring
   context/
-    AuthContext.tsx          # Supabase auth
-    WorkspaceContext.tsx     # Per-workspace config
-    SessionsContext.tsx      # Sessions CRUD (optimistic updates)
-    MobileSidebarContext.tsx # Mobile sidebar open/close state
+    AuthContext.tsx
+    WorkspaceContext.tsx
+    SessionsContext.tsx
+    MobileSidebarContext.tsx
   hooks/
-    useNotes.ts             # Notes CRUD (localStorage, v2 schema)
-    useStats.ts             # Derived stats from sessions
-    useToast.tsx            # Toast notifications
+    useStats.ts             # Derived stats (work-schedule-aware)
+    useExchangeRate.ts      # Exchange rate fetcher
+    useNotes.ts             # Notes CRUD (localStorage)
+    useToast.tsx
   lib/
-    apiKey.ts               # Get-or-create / regenerate long-lived API keys
-    currencies.ts           # Shared currency list (invoice page + table)
-    exportCsv.ts            # CSV export
+    currencies.ts           # 15+ currency list with symbols
+    exportCsv.ts
     session-utils.ts        # Midnight split, duration formatting
-    supabase.ts             # Supabase client
-    constants.ts            # DEFAULTS (week start: Monday)
+    supabase.ts
   types/
-    session.ts
-    activity.ts
-    workspace.ts
-chrome-extension/           # Chrome browser activity tracker
-vscode-extension/           # VS Code activity tracker
-supabase/migrations/        # Database migration SQL files
+chrome-extension/
+vscode-extension/
+supabase/migrations/
 ```
+
+---
 
 ## Environment Variables
 
 | Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase anon key (public) |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ for VS Code ext | Service role key (server-side only, never commit) |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (public) |
+| `SUPABASE_SERVICE_ROLE_KEY` | VS Code ext | Service role key (server-side only — never commit) |
 
-## Notes on Architecture
+---
 
-- **Optimistic updates**: `SessionsContext.updateSession` patches local state immediately, then syncs to Supabase — no refetch, no table flicker.
-- **Notes**: Stored in `localStorage` under key `chrona_notes_v2`. No DB migration needed. Content is Tiptap HTML.
-- **Week boundary**: Weeks start on **Monday** (`WEEK_STARTS_ON = 1` in `src/lib/constants.ts`). The weekly cap resets automatically each Monday.
-- **PR status**: Stored on the `sessions` table as a string enum (`open | in_review | approved | merged | done`). Changed via dropdown in the sessions table with optimistic update.
-- **Mobile sidebar**: `MobileSidebarContext` shared between `Header` (hamburger toggle) and `Sidebar` (overlay + close button). Desktop sidebar is `sticky` in normal document flow so `flex-1` content is naturally width-bounded.
-- **Timer hydration**: All timer state read from `localStorage` (recording/paused/idle, elapsed time, button labels) is gated behind a `mounted` flag in `Timer.tsx`. The server always renders the neutral/idle markup; the real state applies after the client mounts, avoiding React hydration mismatches.
-- **VS Code auth**: `/api/activity` validates requests against the `api_keys` table (a permanent per-user token), not a Supabase session JWT — session tokens expire hourly and broke the integration repeatedly. The `chrona.signIn` VS Code command opens `/vscode-auth` in the browser, which on approval redirects to `vscode://<publisher>.<name>/auth?key=...` to hand the key back to the extension via its registered URI handler.
-- **Chrome extension token refresh**: `content.js` re-pushes the current Supabase session token to the background worker every 4 minutes, since Supabase's silent token refresh updates `localStorage` without firing a same-tab `storage` event — without this, the background worker's token goes stale after ~1 hour and tab-tracking inserts fail silently.
-- **Chrome extension tab logging**: `background.js` logs one `browser_visit` entry per tab visit — duration is flushed when you switch away from a tab (or punch out/pause), not on a periodic timer. A tab left open and untouched does not spam repeat entries.
-- **Chrome extension project-scoped auth**: `getSupabaseCredentials()` in `content.js` reads the auth token from the exact `sb-<project-ref>-auth-token` localStorage key (ref derived from the hardcoded `SUPABASE_URL`), not a wildcard scan — scanning for any `sb-*-auth-token` key picks up stale sessions from other Supabase projects, producing a JWT whose issuer doesn't match `supabaseUrl` and gets silently rejected on every insert. Likewise, `sendToBackground()` falls back to the hardcoded `SUPABASE_URL`/`SUPABASE_ANON_KEY` constants instead of passing through `null`, since a `PUNCH_IN` message with `null` credentials would overwrite the working values `AUTO_AUTH` had already set.
-- **Live punch state (`live_status` table)**: the `sessions` table only gets a row written at punch-out (after the confirmation dialog) — it can never answer "is the user punched in right now." `Timer.tsx` writes to `live_status` on every punch-in/pause/resume/punch-out, and the VS Code extension polls `/api/activity` (GET) every 10s to decide whether to track activity at all, matching the Chrome extension's punched-in gating.
-- **Realtime Activity Log**: `ActivityLog.tsx` subscribes to Supabase Realtime (`postgres_changes` on `activity_events`, filtered by `user_id`) so new VS Code/Chrome/manual entries appear instantly without a page refresh. Requires migration 007 and `REPLICA IDENTITY FULL` on the table so delete/update payloads include `user_id` for the filter to match.
-- **VS Code edit consolidation**: `onDidChangeTextDocument` accumulates a net line delta per file and flushes one `file_edit` event after 10s of inactivity on that file (or immediately on save) — logging a row per keystroke batch would spam the Activity Log.
-- **No circular imports**: `CURRENCIES` lives in `src/lib/currencies.ts`, imported by both `invoice/page.tsx` and `InvoiceTable.tsx` — previously `InvoiceTable.tsx` imported it from the page file that imports `InvoiceTable.tsx` itself, a circular dependency that risked intermittent "cannot access before initialization" errors under HMR.
-- **Landing page vs. dashboard split**: `/` is a public marketing page (`AuthContext`'s `PUBLIC_PATHS`); the authenticated app lives at `/dashboard`. Logging in or visiting `/`/`/login` while already signed in redirects to `/dashboard`. `SidebarWrapper` hides the app sidebar on `/` and `/login` only.
-- **Shared `PageHeader`**: every page except the dashboard (which has its own richer `Header` with a greeting/streak) and the landing page uses `PageHeader` for title/subtitle/actions and the mobile hamburger. Before this existed, several pages (Reports, Notes) had hand-rolled header bars missing the hamburger entirely, and others (Sessions, Invoice, Settings) had no header bar at all — both meant broken mobile nav on most pages.
-- **HoursHeatmap cell radius**: cells use a fixed `rounded-[2px]`, not the semantic `rounded-sm` token — at the heatmap's 12px cell size, `rounded-sm` resolves through the theme's `--radius` variable to a radius larger than half the box, rendering as a circle instead of a small square.
-- **Invoice number / due date**: computed deterministically from the workspace name + period start (`INV-<3-letter-slug>-<yyyyMMdd>`), so reopening the same date range always shows the same invoice number rather than a random one. Due date = period end + `payment_terms_days` (workspace setting, migration 009).
+## Architecture Notes
+
+- **Optimistic updates** — `SessionsContext.updateSession` patches local state immediately, then syncs to Supabase
+- **Work schedule** — `useStats` uses `workStartDay`/`workEndDay` from workspace config to determine which days are work days, compute `dailyTargetHours`, and reset the week on the correct day
+- **Notes** — stored in `localStorage` under `chrona_notes_v2`. No DB migration needed. Content is Tiptap HTML
+- **Exchange rates** — fetched server-side via `/api/exchange-rate` (Frankfurter API, 5-min revalidation) to avoid client-side CORS errors
+- **Invoice number** — deterministic from workspace slug + period start (`INV-<3-letter-slug>-<yyyyMMdd>`), so reopening the same range always shows the same invoice number
+- **Due date** — period end + `payment_terms_days` (workspace setting)
+- **PR status** — stored as a string enum (`open | in_review | approved | merged | done`) on the sessions table; changed via dropdown with optimistic update
+- **Mobile sidebar** — `MobileSidebarContext` shared between `Header` (hamburger) and `Sidebar` (overlay); sets `document.body.style.overflow = "hidden"` when open
+- **Desktop sidebar collapse** — `collapsed` state persisted in `localStorage.sidebar-collapsed`
+- **Timer hydration** — timer state from `localStorage` is gated behind a `mounted` flag to avoid SSR/hydration mismatch
+- **VS Code auth** — `/api/activity` validates a permanent personal API key from the `api_keys` table, not a short-lived Supabase session JWT
+- **Live punch state** — `live_status` table (written by `Timer.tsx`) lets the VS Code extension poll `/api/activity` (GET) to know if tracking should be active, since the `sessions` table only gets a row at punch-out
+- **Realtime activity log** — `ActivityLog.tsx` subscribes to `postgres_changes` on `activity_events` filtered by `user_id`; requires migration 007 and `REPLICA IDENTITY FULL`
+- **VS Code edit consolidation** — one `file_edit` event per ~10s of inactivity per file (not one per keystroke)
+- **Chrome extension tab logging** — duration flushed on tab switch-away or punch-out, not on a timer
+- **Chrome extension token refresh** — `content.js` re-pushes the Supabase session token to the background worker every 4 min (Supabase's silent refresh updates `localStorage` without firing a `storage` event in the same tab)
+- **Landing vs. dashboard split** — `/` is a public marketing page; the authenticated app lives at `/dashboard`. `SidebarWrapper` hides the sidebar on `/` and `/login` only
+- **HoursHeatmap cell radius** — uses `rounded-[2px]` (not `rounded-sm`) because at 12px cell size the theme's `--radius` variable makes `rounded-sm` render as a full circle

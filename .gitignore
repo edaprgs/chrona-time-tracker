@@ -44,3 +44,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .vscode/
+
+# AI / editor agent instructions (local only)
+CLAUDE.md
+AGENTS.md
+.claude/
