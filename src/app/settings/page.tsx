@@ -29,6 +29,8 @@ export default function SettingsPage() {
   const [paymentTermsDays, setPaymentTermsDays] = useState("15");
   const [color, setColor]                 = useState(COLORS[0]);
   const [description, setDescription]     = useState("");
+  const [workStartDay, setWorkStartDay]   = useState(1);
+  const [workEndDay, setWorkEndDay]       = useState(5);
   const [saving, setSaving]               = useState(false);
   const [showNew, setShowNew]             = useState(false);
   const [apiKey, setApiKey]               = useState("");
@@ -61,6 +63,8 @@ export default function SettingsPage() {
     setPaymentTermsDays(String(active.payment_terms_days));
     setColor(active.color ?? COLORS[0]);
     setDescription(active.description ?? "");
+    setWorkStartDay(active.work_start_day ?? 1);
+    setWorkEndDay(active.work_end_day ?? 5);
   }, [active]);
 
   async function handleSave(e: React.FormEvent) {
@@ -77,6 +81,8 @@ export default function SettingsPage() {
       payment_terms_days: Number(paymentTermsDays),
       color,
       description: description || null,
+      work_start_day: workStartDay,
+      work_end_day:   workEndDay,
     });
     setSaving(false);
     toast("Workspace saved.", "success");
@@ -95,7 +101,7 @@ export default function SettingsPage() {
     return (
       <main className="min-h-screen bg-background">
         <PageHeader icon={Settings} title="Settings" />
-        <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 md:space-y-8 md:px-6 md:py-10">
+        <div className="mx-auto max-w-2xl space-y-5 px-4 py-4 md:space-y-8 md:px-6 md:py-10">
           <p className="text-muted-foreground">Loading…</p>
         </div>
       </main>
@@ -109,13 +115,15 @@ export default function SettingsPage() {
         title="Settings"
         subtitle="Manage your workspaces. Each workspace is a separate job or client."
         actions={
-          <Button onClick={() => setShowNew(true)} size="sm" className="shrink-0 gap-2">
-            <Plus className="size-4" /> New workspace
+          <Button onClick={() => setShowNew(true)} size="sm" className="shrink-0 gap-1.5">
+            <Plus className="size-4" />
+            <span className="hidden sm:inline">New workspace</span>
+            <span className="sm:hidden">New</span>
           </Button>
         }
       />
 
-      <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 md:space-y-8 md:px-6 md:py-10">
+      <div className="mx-auto max-w-2xl space-y-5 px-4 py-4 md:space-y-8 md:px-6 md:py-10">
       {/* Workspace tabs */}
       {workspaces.length > 1 && (
         <div className="flex flex-wrap gap-2">
@@ -139,14 +147,15 @@ export default function SettingsPage() {
       )}
 
       {active ? (
-        <form onSubmit={handleSave} className="space-y-6">
-          {/* Identity */}
-          <fieldset className="space-y-4 rounded-xl border p-5">
-            <legend className="px-1 text-sm font-semibold">Identity</legend>
+        <form onSubmit={handleSave} className="space-y-4 md:space-y-6">
 
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-sm font-medium">
-                <Briefcase className="size-3.5" /> Workspace name
+          {/* Identity */}
+          <fieldset className="space-y-3 rounded-xl border p-4 md:space-y-4 md:p-5">
+            <legend className="px-1 text-base font-semibold">Identity</legend>
+
+            <div className="space-y-1">
+              <label className="block text-sm font-semibold text-foreground">
+                Workspace name
               </label>
               <Input
                 placeholder="e.g. Nudgine LLC"
@@ -156,21 +165,19 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground">Shown in the sidebar and browser tab.</p>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-sm font-medium">
-                <User className="size-3.5" /> Your name (contractor)
-              </label>
+            <div className="space-y-1">
+              <label className="block text-sm font-semibold text-foreground">Your name</label>
+              <p className="text-xs text-muted-foreground">Your name as the contractor on invoices.</p>
               <Input
-                placeholder="e.g. Eda Grace Jutba Paragoso"
+                placeholder="e.g. Eda Grace Paragoso"
                 value={contractorName}
                 onChange={(e) => setContractorName(e.target.value)}
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-sm font-medium">
-                <Briefcase className="size-3.5" /> Client / company name
-              </label>
+            <div className="space-y-1">
+              <label className="block text-sm font-semibold text-foreground">Client / company</label>
+              <p className="text-xs text-muted-foreground">Who you invoice — shown on the invoice header.</p>
               <Input
                 placeholder="e.g. Nudgine, LLC"
                 value={clientName}
@@ -178,8 +185,10 @@ export default function SettingsPage() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Description <span className="text-muted-foreground font-normal">(optional)</span></label>
+            <div className="space-y-1">
+              <label className="block text-sm font-semibold text-foreground">
+                Description <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+              </label>
               <Input
                 placeholder="e.g. Frontend dev contract, 40h/wk"
                 value={description}
@@ -187,15 +196,15 @@ export default function SettingsPage() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Workspace color</label>
-              <div className="flex gap-2">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-foreground">Workspace color</label>
+              <div className="flex flex-wrap gap-2.5">
                 {COLORS.map((c) => (
                   <button
                     key={c}
                     type="button"
                     onClick={() => setColor(c)}
-                    className="size-7 rounded-full border-2 transition-transform hover:scale-110"
+                    className="size-8 rounded-full border-2 transition-transform hover:scale-110 active:scale-95"
                     style={{
                       backgroundColor: c,
                       borderColor: color === c ? "white" : "transparent",
@@ -207,38 +216,79 @@ export default function SettingsPage() {
             </div>
           </fieldset>
 
+          {/* Schedule */}
+          <fieldset className="space-y-3 rounded-xl border p-4 md:space-y-4 md:p-5">
+            <legend className="px-1 text-base font-semibold">Schedule</legend>
+
+            {(() => {
+              const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+              const s = workStartDay;
+              const e = workEndDay;
+              const numDays = s <= e ? e - s + 1 : 7 - s + e + 1;
+              const dailyTarget = Number(weeklyCap) / numDays;
+              return (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-sm font-semibold text-foreground">Work starts</label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={workStartDay}
+                        onChange={(e) => setWorkStartDay(Number(e.target.value))}
+                      >
+                        {DAY_NAMES.map((name, i) => (
+                          <option key={i} value={i}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-sm font-semibold text-foreground">Work ends</label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={workEndDay}
+                        onChange={(e) => setWorkEndDay(Number(e.target.value))}
+                      >
+                        {DAY_NAMES.map((name, i) => (
+                          <option key={i} value={i}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 px-3 py-2">
+                    <p className="text-sm font-medium">{numDays} work day{numDays !== 1 ? "s" : ""} per week</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Daily target: {dailyTarget.toFixed(1)}h based on {weeklyCap}h weekly cap</p>
+                  </div>
+                </>
+              );
+            })()}
+          </fieldset>
+
           {/* Billing */}
-          <fieldset className="space-y-4 rounded-xl border p-5">
-            <legend className="px-1 text-sm font-semibold">Billing</legend>
+          <fieldset className="space-y-3 rounded-xl border p-4 md:space-y-4 md:p-5">
+            <legend className="px-1 text-base font-semibold">Billing</legend>
 
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-sm font-medium">
-                <DollarSign className="size-3.5" /> Hourly rate (USD)
-              </label>
-              <Input type="number" min={0} step={0.01} value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-sm font-semibold text-foreground">Hourly rate (USD)</label>
+                <Input type="number" min={0} step={0.01} value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-semibold text-foreground">Weekly cap (hrs)</label>
+                <Input type="number" min={1} value={weeklyCap} onChange={(e) => setWeeklyCap(e.target.value)} />
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-sm font-medium">
-                <Clock className="size-3.5" /> Weekly hour cap
-              </label>
-              <Input type="number" min={1} value={weeklyCap} onChange={(e) => setWeeklyCap(e.target.value)} />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-sm font-medium">
-                <Calendar className="size-3.5" /> Invoice cycle (days)
-              </label>
-              <Input type="number" min={7} value={cycleDays} onChange={(e) => setCycleDays(e.target.value)} />
-              <p className="text-xs text-muted-foreground">14 = biweekly, 7 = weekly.</p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-sm font-medium">
-                <Calendar className="size-3.5" /> Payment terms (days)
-              </label>
-              <Input type="number" min={0} value={paymentTermsDays} onChange={(e) => setPaymentTermsDays(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Due date on invoices = period end + this many days. 15 = Net 15.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-sm font-semibold text-foreground">Invoice cycle (days)</label>
+                <Input type="number" min={7} value={cycleDays} onChange={(e) => setCycleDays(e.target.value)} />
+                <p className="text-xs text-muted-foreground">14 = biweekly</p>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-semibold text-foreground">Payment terms (days)</label>
+                <Input type="number" min={0} value={paymentTermsDays} onChange={(e) => setPaymentTermsDays(e.target.value)} />
+                <p className="text-xs text-muted-foreground">15 = Net 15</p>
+              </div>
             </div>
           </fieldset>
 
@@ -275,15 +325,17 @@ export default function SettingsPage() {
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Connect Trackers</h2>
 
         {/* Chrome Extension */}
-        <div className="rounded-xl border bg-card p-5 flex items-center gap-4">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
-            <Globe className="size-5 text-muted-foreground" />
+        <div className="rounded-xl border bg-card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
+          <div className="flex items-center gap-3 sm:contents">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+              <Globe className="size-5 text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">Chrome Extension</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Tracks browser tabs - GitHub, Linear, Figma, Notion, etc. Blocks social &amp; entertainment sites.</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm">Chrome Extension</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Tracks browser tabs — GitHub, Linear, Figma, Notion, etc. Blocks social &amp; entertainment sites.</p>
-          </div>
-          <Button size="sm" variant="secondary" onClick={() => window.open("chrome://extensions", "_blank")}>
+          <Button size="sm" variant="secondary" className="self-start sm:shrink-0" onClick={() => window.open("chrome://extensions", "_blank")}>
             Manage in Chrome
           </Button>
         </div>
@@ -300,7 +352,7 @@ export default function SettingsPage() {
                 Sends file edits, saves, terminal activity, and git commits to your activity log.
               </p>
               <p className="text-xs text-muted-foreground mt-1.5">
-                <span className="font-medium text-foreground">Easiest setup:</span> in VS Code, open the Command Palette (<span className="font-mono">Cmd+Shift+P</span>) and run <span className="font-mono">Chrona: Sign In</span>. It opens this page in your browser, you approve, and the key is saved automatically — no copy/paste.
+                <span className="font-medium text-foreground">Easiest setup:</span> in VS Code, open the Command Palette (<span className="font-mono">Cmd+Shift+P</span>) and run <span className="font-mono">Chrona: Sign In</span>. It opens this page in your browser, you approve, and the key is saved automatically - no copy/paste.
               </p>
             </div>
 
@@ -310,33 +362,35 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground">
                 Paste this into VS Code → Settings → <span className="font-mono">chrona.accessToken</span>. Unlike a session token, this key doesn&apos;t expire.
               </p>
-              <div className="flex items-center gap-2">
+              <div className="space-y-2">
                 <div className="flex-1 min-w-0 rounded-lg border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground truncate">
                   {apiKeyLoading ? "Loading…" : apiKey || "Failed to generate key"}
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0 gap-1.5"
-                  disabled={!apiKey}
-                  onClick={() => {
-                    navigator.clipboard.writeText(apiKey);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
-                >
-                  {copied ? <CheckCheck className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
-                  {copied ? "Copied!" : "Copy"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="shrink-0 text-xs text-muted-foreground"
-                  disabled={apiKeyLoading}
-                  onClick={handleRegenerateApiKey}
-                >
-                  Regenerate
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-1.5"
+                    disabled={!apiKey}
+                    onClick={() => {
+                      navigator.clipboard.writeText(apiKey);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                  >
+                    {copied ? <CheckCheck className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+                    {copied ? "Copied!" : "Copy key"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="shrink-0 text-xs text-muted-foreground"
+                    disabled={apiKeyLoading}
+                    onClick={handleRegenerateApiKey}
+                  >
+                    Regenerate
+                  </Button>
+                </div>
               </div>
               <p className="text-[11px] text-muted-foreground/60">
                 Also set <span className="font-mono">chrona.apiUrl</span> to your deployed URL (or <span className="font-mono">http://localhost:3000</span> for local dev).

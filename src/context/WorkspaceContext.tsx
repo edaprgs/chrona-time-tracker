@@ -29,6 +29,10 @@ interface WorkspaceContextValue {
   weeklyHourCap:    number;
   invoiceCycleDays: number;
   paymentTermsDays: number;
+  workStartDay: number;
+  workEndDay: number;
+  numWorkDays: number;
+  dailyTargetHours: number;
 }
 
 export interface NewWorkspaceData {
@@ -142,6 +146,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       weeklyHourCap:    active?.weekly_hour_cap   ?? DEFAULTS.WEEKLY_HOUR_CAP,
       invoiceCycleDays: active?.invoice_cycle_days ?? DEFAULTS.INVOICE_CYCLE_DAYS,
       paymentTermsDays: active?.payment_terms_days ?? DEFAULTS.PAYMENT_TERMS_DAYS,
+      workStartDay:     active?.work_start_day ?? DEFAULTS.WORK_START_DAY,
+      workEndDay:       active?.work_end_day   ?? DEFAULTS.WORK_END_DAY,
+      get numWorkDays() {
+        const s = active?.work_start_day ?? DEFAULTS.WORK_START_DAY;
+        const e = active?.work_end_day   ?? DEFAULTS.WORK_END_DAY;
+        return s <= e ? e - s + 1 : 7 - s + e + 1;
+      },
+      get dailyTargetHours() {
+        const cap = active?.weekly_hour_cap ?? DEFAULTS.WEEKLY_HOUR_CAP;
+        const s = active?.work_start_day ?? DEFAULTS.WORK_START_DAY;
+        const e = active?.work_end_day   ?? DEFAULTS.WORK_END_DAY;
+        const n = s <= e ? e - s + 1 : 7 - s + e + 1;
+        return cap / n;
+      },
     }}>
       {children}
     </WorkspaceContext.Provider>

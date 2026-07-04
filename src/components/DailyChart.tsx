@@ -15,12 +15,7 @@ import { useWorkspace } from "@/context/WorkspaceContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { BarChart2 } from "lucide-react";
 
-interface DailyBar {
-  day: string;
-  date: string;
-  hours: number;
-  isToday: boolean;
-}
+import type { DailyBar } from "@/hooks/useStats";
 
 interface TooltipPayload {
   active?: boolean;
@@ -30,20 +25,20 @@ interface TooltipPayload {
 
 function CustomTooltip({ active, payload }: TooltipPayload) {
   if (!active || !payload?.length) return null;
-  const { hours, day, date } = payload[0].payload;
+  const { hours, day, date, isWorkDay } = payload[0].payload;
   return (
     <div className="rounded-lg border bg-card px-3 py-2.5 text-sm shadow-md space-y-0.5">
-      <p className="font-semibold">{day}, {date}</p>
+      <p className="font-semibold">{day}, {date}{!isWorkDay ? " (off)" : ""}</p>
       <p className="text-primary font-medium">{hours.toFixed(2)}h worked</p>
     </div>
   );
 }
 
 export default function DailyChart() {
-  const { dailyBreakdown } = useStats();
+  const { dailyBreakdown, dailyTargetHours } = useStats();
   const { weeklyHourCap } = useWorkspace();
 
-  const dailySoftCap = weeklyHourCap / 5;
+  const dailySoftCap = dailyTargetHours;
   const maxHours = Math.max(...dailyBreakdown.map((d) => d.hours), dailySoftCap + 1);
   const totalWeekHours = dailyBreakdown.reduce((s, d) => s + d.hours, 0);
 
@@ -66,7 +61,7 @@ export default function DailyChart() {
 
         {/* Daily soft-cap note */}
         <p className="mb-4 text-[11px] text-muted-foreground">
-          Daily target: {dailySoftCap}h · Cap: {weeklyHourCap}h/week
+          Daily target: {dailySoftCap.toFixed(1)}h · Cap: {weeklyHourCap}h/week
         </p>
 
         <ResponsiveContainer width="100%" height={200}>
@@ -106,11 +101,13 @@ export default function DailyChart() {
                   fill={
                     entry.isToday
                       ? "#f9a8d4"
+                      : !entry.isWorkDay
+                      ? "#e5e7eb"
                       : entry.hours > 0
                       ? "#c4b5fd"
                       : "#e5e7eb"
                   }
-                  fillOpacity={entry.hours === 0 ? 0.5 : 1}
+                  fillOpacity={entry.hours === 0 || !entry.isWorkDay ? 0.4 : 1}
                 />
               ))}
             </Bar>
@@ -121,8 +118,8 @@ export default function DailyChart() {
         <div className="mt-3 grid grid-cols-7 gap-1 text-center">
           {dailyBreakdown.map((d) => (
             <div key={d.day} className="space-y-0.5">
-              <p className={`text-xs font-semibold ${d.isToday ? "text-primary" : "text-foreground"}`}>
-                {d.hours > 0 ? `${d.hours}h` : "-"}
+              <p className={`text-xs font-semibold ${d.isToday ? "text-primary" : !d.isWorkDay ? "text-muted-foreground/40" : "text-foreground"}`}>
+                {d.hours > 0 ? `${d.hours}h` : !d.isWorkDay ? "off" : "-"}
               </p>
               <p className="text-[10px] text-muted-foreground leading-tight">{d.date}</p>
             </div>
