@@ -47,7 +47,8 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
 
   const refetch = useCallback(async () => {
     if (!user || !activeWorkspace) { setSessions([]); setLoading(false); return; }
-    setLoading(true);
+    // Only show the loading spinner on the very first fetch; subsequent
+    // refetches silently update the list so the table doesn't flicker.
     const { data, error } = await supabase
       .from("sessions")
       .select("*")
@@ -81,7 +82,8 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
       );
     }
 
-    await refetch();
+    // Optimistic: prepend the new session without triggering a loading spinner
+    setSessions((prev) => [data as Session, ...prev]);
     return data as Session;
   }
 
@@ -93,8 +95,9 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
 
   async function deleteSession(id: string) {
     if (!user) return;
+    // Optimistic: remove immediately, no loading spinner
+    setSessions((prev) => prev.filter((s) => s.id !== id));
     await supabase.from("sessions").delete().eq("id", id).eq("user_id", user.id);
-    await refetch();
   }
 
   return (

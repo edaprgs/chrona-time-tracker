@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSessionsContext } from "@/context/SessionsContext";
 import { useToast } from "@/hooks/useToast";
-import { detectMidnightSplit } from "@/lib/session-utils";
+import { detectMidnightSplit, splitWorkedMinutesAtMidnight } from "@/lib/session-utils";
 import { loadTemplates, saveTemplate, deleteTemplate, type SessionTemplate } from "@/lib/templates";
 import type { Session, PrStatus } from "@/types/session";
 import type { PauseEntry } from "@/types/activity";
@@ -88,9 +88,20 @@ export default function SessionDialog({
   const [showTemplates, setShowTemplates] = useState(false);
 
   const punchOutISO = new Date().toISOString();
-  const split = !isEditMode && !isManual && punchedInAt
+  const rawSplit = !isEditMode && !isManual && punchedInAt
     ? detectMidnightSplit(punchedInAt, punchOutISO)
     : null;
+  // Recalculate split durations using actual worked time (minus pauses) so a
+  // session paused across midnight doesn't inflate the per-day hour counts.
+  const workedSplit = rawSplit && punchedInAt && pauseLog
+    ? splitWorkedMinutesAtMidnight(punchedInAt, punchOutISO, pauseLog)
+    : null;
+  const split = rawSplit && workedSplit
+    ? {
+        first:  { ...rawSplit.first,  duration_minutes: workedSplit.firstMinutes  },
+        second: { ...rawSplit.second, duration_minutes: workedSplit.secondMinutes },
+      }
+    : rawSplit;
 
   const manualSplit = isManual && manualDate && manualStart && manualEnd
     ? detectMidnightSplit(
@@ -235,7 +246,7 @@ export default function SessionDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="max-h-[70vh] overflow-y-auto pr-1 space-y-4">
           {/* Timer punch info + focus score */}
           {!isEditMode && !isManual && punchedInAt && (
             <div className="rounded-lg bg-muted px-4 py-2.5 text-sm">
