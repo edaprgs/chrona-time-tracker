@@ -1,7 +1,8 @@
 // Injected into the Chrona web app — bridges timer events to the background worker
-// config.js is NOT available here (content scripts are isolated), so we hardcode.
-const SUPABASE_URL      = "https://vnplmrvcdetlvugfezqq.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZucGxtcnZjZGV0bHZ1Z2ZlenFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMTc4OTAsImV4cCI6MjA5Nzc5Mzg5MH0.YCXk9wqM8YSKcUJbZC3eNRB2P5oHnd9Qu8Tt4QA3Dq4";
+// config.js is NOT available here (content scripts are isolated), so credentials
+// must be set here. Fill these in with your own Supabase project values.
+const SUPABASE_URL      = "YOUR_SUPABASE_PROJECT_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 
 const STORAGE_KEY = "chrona_timer";
 const SB_URL_KEY  = "chrona_sb_url";

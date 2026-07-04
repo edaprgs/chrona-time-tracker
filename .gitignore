@@ -49,3 +49,6 @@ next-env.d.ts
 CLAUDE.md
 AGENTS.md
 .claude/
+
+# Chrome extension — contains hardcoded Supabase credentials
+chrome-extension/content.js
