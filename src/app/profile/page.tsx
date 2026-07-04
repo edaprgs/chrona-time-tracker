@@ -25,7 +25,7 @@ export default function ProfilePage() {
 
   const initials  = (user?.email?.[0] ?? "U").toUpperCase();
   const emailName = user?.email?.split("@")[0] ?? "";
-  const joined    = user?.created_at ? format(new Date(user.created_at), "MMMM d, yyyy") : "—";
+  const joined    = user?.created_at ? format(new Date(user.created_at), "MMMM d, yyyy") : "N/A";
 
   const totalHours = sessions.reduce((sum, s) => sum + Number(s.duration_minutes || 0), 0) / 60;
 
@@ -99,7 +99,7 @@ export default function ProfilePage() {
           <h2 className="font-semibold">Email</h2>
         </div>
         <p className="text-sm text-muted-foreground">
-          {user?.email} — contact support to change your email address.
+          {user?.email} · Contact support to change your email address.
         </p>
       </div>
 

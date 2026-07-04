@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import SidebarWrapper from "@/components/SidebarWrapper";
 import MainContent from "@/components/MainContent";
 import Toaster from "@/components/Toaster";
+import CalculatorWidget from "@/components/CalculatorWidget";
 import { SessionsProvider } from "@/context/SessionsContext";
 import { ToastProvider } from "@/hooks/useToast";
 import { AuthProvider } from "@/context/AuthContext";
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <SidebarWrapper />
                   <MainContent>{children}</MainContent>
                   <Toaster />
+                  <CalculatorWidget />
                 </MobileSidebarProvider>
               </SessionsProvider>
             </WorkspaceProvider>

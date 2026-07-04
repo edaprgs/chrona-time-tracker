@@ -122,7 +122,7 @@ export default function DailyChart() {
           {dailyBreakdown.map((d) => (
             <div key={d.day} className="space-y-0.5">
               <p className={`text-xs font-semibold ${d.isToday ? "text-primary" : "text-foreground"}`}>
-                {d.hours > 0 ? `${d.hours}h` : "—"}
+                {d.hours > 0 ? `${d.hours}h` : "-"}
               </p>
               <p className="text-[10px] text-muted-foreground leading-tight">{d.date}</p>
             </div>

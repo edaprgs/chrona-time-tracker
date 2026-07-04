@@ -45,7 +45,7 @@ export default function StatCards() {
     },
     {
       label: "Focus Score",
-      value: focusScore !== null ? `${focusScore}%` : "—",
+      value: focusScore !== null ? `${focusScore}%` : "-",
       icon: Zap,
       sub: focusScore !== null ? (focusGood ? "high focus this week" : focusModerate ? "moderate focus" : "low focus — check pauses") : "no data yet",
       highlight: false, critical: focusLow, warning: focusModerate, focusGood, focusModerate: false, focusLow: false,

@@ -247,7 +247,7 @@ export default function SessionsTable() {
                     <TableCell className="truncate text-muted-foreground">
                       {session.description
                         ? search ? <Highlight text={session.description} query={search} /> : session.description
-                        : "—"}
+                        : "-"}
                     </TableCell>
 
                     <TableCell className="whitespace-nowrap font-medium text-primary">

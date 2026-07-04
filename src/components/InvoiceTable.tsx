@@ -81,7 +81,7 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
   function displayAmount(usdAmount: number): string {
     if (isUSD) return fmt(usdAmount, symbol);
     const converted = convert(usdAmount, displayCurrency);
-    if (converted === null) return "—";
+    if (converted === null) return "-";
     return fmt(converted, symbol);
   }
 
@@ -114,7 +114,7 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
         <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground print:hidden">
           <RefreshCw className={`size-3.5 shrink-0 ${ratesLoading ? "animate-spin" : ""}`} />
           {ratesLoading && "Fetching live exchange rates…"}
-          {ratesError  && "Could not fetch rates — showing USD only."}
+          {ratesError  && "Could not fetch rates, showing USD only."}
           {!ratesLoading && !ratesError && rates && (
             <span>
               Live rates · 1 USD = {fmt(rates[displayCurrency] ?? 0, symbol)}
@@ -178,11 +178,11 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="font-semibold">From</p>
-            <p>{contractorName || "—"}</p>
+            <p>{contractorName || "-"}</p>
           </div>
           <div>
             <p className="font-semibold">To</p>
-            <p>{clientName || "—"}</p>
+            <p>{clientName || "-"}</p>
           </div>
         </div>
         <div className="text-sm mt-2">
@@ -269,7 +269,7 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
                     </TableCell>
                     <TableCell className="truncate font-medium">{session.task}</TableCell>
                     <TableCell className="truncate text-muted-foreground">
-                      {session.description || "—"}
+                      {session.description || "-"}
                     </TableCell>
                     <TableCell className="whitespace-nowrap font-medium">
                       {formatDuration(Number(session.duration_minutes))}
@@ -279,7 +279,7 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
                     </TableCell>
                     {showPHP && (
                       <TableCell className="whitespace-nowrap text-emerald-600 dark:text-emerald-400">
-                        {php ?? "—"}
+                        {php ?? "-"}
                       </TableCell>
                     )}
                     <TableCell>
@@ -288,7 +288,7 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
                           className="inline-flex items-center gap-1 text-primary hover:underline">
                           <Globe className="size-3.5" /> PR
                         </a>
-                      ) : <span className="text-muted-foreground">—</span>}
+                      ) : <span className="text-muted-foreground/50 text-xs">-</span>}
                     </TableCell>
                   </TableRow>
                 );

@@ -28,7 +28,7 @@ export default function ReportsSummary() {
   const cards = [
     { label: "Total Hours", value: `${stats.totalHours.toFixed(1)}h`, icon: Clock,        sub: `${stats.sessionCount} sessions` },
     { label: "Total Earned", value: `$${stats.totalEarnings.toFixed(0)}`, icon: DollarSign, sub: "all time (USD)"   },
-    { label: "Avg Focus",    value: stats.avgFocus != null ? `${stats.avgFocus}%` : "—",  icon: Zap,          sub: "across sessions" },
+    { label: "Avg Focus",    value: stats.avgFocus != null ? `${stats.avgFocus}%` : "-",  icon: Zap,          sub: "across sessions" },
     { label: "Unique Tasks", value: String(stats.taskCount), icon: CalendarDays, sub: "distinct tasks"  },
   ];
 
