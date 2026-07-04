@@ -9,13 +9,21 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Coffee, Users, Phone, Zap } from "lucide-react";
+import { Coffee, Users, Phone, Zap, Toilet, Car, Heart, BookOpen, Dumbbell, Baby, ShoppingCart, MonitorOff } from "lucide-react";
 
 const QUICK_REASONS = [
-  { label: "Lunch / Food",  icon: Coffee },
-  { label: "Meeting",       icon: Users  },
-  { label: "Phone call",    icon: Phone  },
-  { label: "Distraction",   icon: Zap    },
+  { label: "Lunch / Food",   icon: Coffee     },
+  { label: "Meeting",        icon: Users      },
+  { label: "Phone call",     icon: Phone      },
+  { label: "Distraction",    icon: Zap        },
+  { label: "Restroom",       icon: Toilet     },
+  { label: "Commute / Errand", icon: Car      },
+  { label: "Health / Rest",  icon: Heart      },
+  { label: "Study / Reading",icon: BookOpen   },
+  { label: "Exercise",       icon: Dumbbell   },
+  { label: "Family / Kids",  icon: Baby       },
+  { label: "Errands / Chores", icon: ShoppingCart },
+  { label: "Screen break",   icon: MonitorOff },
 ];
 
 interface Props {
