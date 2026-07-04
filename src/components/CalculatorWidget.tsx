@@ -1,48 +1,98 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Calculator, DollarSign, RefreshCw, X } from "lucide-react";
+import { Calculator, DollarSign, RefreshCw, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Popular currencies shown in selector
+const CURRENCIES = [
+  "USD", "PHP", "EUR", "GBP", "JPY", "AUD", "CAD", "SGD",
+  "HKD", "KRW", "INR", "MYR", "THB", "IDR", "VND",
+];
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$", PHP: "₱", EUR: "€", GBP: "£", JPY: "¥", AUD: "A$",
+  CAD: "C$", SGD: "S$", HKD: "HK$", KRW: "₩", INR: "₹",
+  MYR: "RM", THB: "฿", IDR: "Rp", VND: "₫",
+};
 
 // ── Currency calculator ───────────────────────────────────────────────────────
 
 function CurrencyCalc() {
-  const [usd, setUsd]         = useState("");
+  const [from, setFrom]       = useState("USD");
+  const [to, setTo]           = useState("PHP");
+  const [amount, setAmount]   = useState("");
   const [rate, setRate]       = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState(false);
+  const [error, setError]     = useState<string | null>(null);
 
-  async function fetchRate() {
-    setLoading(true); setError(false);
+  const fetchRate = useCallback(async (f = from, t = to) => {
+    if (f === t) { setRate(1); return; }
+    setLoading(true); setError(null);
     try {
-      const res  = await fetch("https://api.frankfurter.app/latest?from=USD&to=PHP");
+      const res  = await fetch(`/api/exchange-rate?from=${f}&to=${t}`);
       const data = await res.json();
-      setRate(data.rates?.PHP ?? null);
-    } catch {
-      setError(true);
+      if (data.error) throw new Error(data.error);
+      setRate(data.rate);
+    } catch (e) {
+      setError((e as Error).message || "Could not load rate");
+      setRate(null);
     }
     setLoading(false);
+  }, [from, to]);
+
+  useEffect(() => { fetchRate(from, to); }, [from, to]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const num    = parseFloat(amount);
+  const result = !isNaN(num) && rate !== null ? num * rate : null;
+  const sym    = CURRENCY_SYMBOLS[to] ?? "";
+  const fromSym = CURRENCY_SYMBOLS[from] ?? "";
+
+  function swap() {
+    setFrom(to);
+    setTo(from);
+    setAmount("");
   }
-
-  useEffect(() => { fetchRate(); }, []);
-
-  const usdNum = parseFloat(usd);
-  const php    = !isNaN(usdNum) && rate ? usdNum * rate : null;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
+      {/* Currency selectors */}
+      <div className="flex items-center gap-2">
+        <select
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          className="flex-1 rounded-lg border bg-background px-2 py-1.5 text-sm font-medium"
+        >
+          {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <button
+          onClick={swap}
+          className="rounded-lg border p-1.5 hover:bg-muted transition-colors"
+          title="Swap currencies"
+        >
+          <ArrowLeftRight className="size-3.5 text-muted-foreground" />
+        </button>
+        <select
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          className="flex-1 rounded-lg border bg-background px-2 py-1.5 text-sm font-medium"
+        >
+          {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+
+      {/* Rate display */}
+      <div className="flex items-center justify-between text-xs">
+        <p className="text-muted-foreground">
           {loading && "Fetching live rate…"}
-          {error   && "Could not load rate."}
-          {!loading && !error && rate && (
-            <span>1 USD = <span className="font-semibold text-foreground">₱{rate.toFixed(2)}</span></span>
+          {error   && <span className="text-destructive">{error}</span>}
+          {!loading && !error && rate !== null && (
+            <span>1 {from} = <span className="font-semibold text-foreground">{sym}{rate.toFixed(4)} {to}</span></span>
           )}
         </p>
         <button
-          onClick={fetchRate}
+          onClick={() => fetchRate(from, to)}
           disabled={loading}
           className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted transition-colors"
         >
@@ -51,28 +101,26 @@ function CurrencyCalc() {
         </button>
       </div>
 
-      <div className="space-y-2">
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">$</span>
-          <input
-            type="number"
-            placeholder="0.00"
-            value={usd}
-            onChange={(e) => setUsd(e.target.value)}
-            className="w-full rounded-xl border bg-muted/30 py-3 pl-8 pr-4 text-lg font-semibold tabular-nums outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </div>
+      {/* Amount input */}
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">{fromSym}</span>
+        <input
+          type="number"
+          placeholder="0.00"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="w-full rounded-xl border bg-muted/30 py-3 pl-8 pr-4 text-lg font-semibold tabular-nums outline-none focus:ring-2 focus:ring-primary/30"
+        />
+      </div>
 
-        <div className="flex items-center justify-center">
-          <span className="text-xs text-muted-foreground">converts to</span>
-        </div>
-
-        <div className="rounded-xl border bg-primary/5 px-4 py-3 text-center">
-          <p className="text-2xl font-bold tabular-nums text-primary">
-            {php !== null ? `₱${php.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "₱—"}
-          </p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">Philippine Peso</p>
-        </div>
+      {/* Result */}
+      <div className="rounded-xl border bg-primary/5 px-4 py-3 text-center">
+        <p className="text-2xl font-bold tabular-nums text-primary">
+          {result !== null
+            ? `${sym}${result.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : `${sym}-`}
+        </p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{to}</p>
       </div>
 
       {/* Quick amounts */}
@@ -80,13 +128,13 @@ function CurrencyCalc() {
         {[5, 10, 25, 50, 100, 500, 1000, 2000].map((amt) => (
           <button
             key={amt}
-            onClick={() => setUsd(String(amt))}
+            onClick={() => setAmount(String(amt))}
             className={cn(
               "rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors",
-              usdNum === amt ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"
+              num === amt ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"
             )}
           >
-            ${amt}
+            {fromSym}{amt}
           </button>
         ))}
       </div>
@@ -98,7 +146,7 @@ function CurrencyCalc() {
 
 const BUTTONS = [
   ["C", "+/-", "%", "/"],
-  ["7", "8",   "9",  "×"],
+  ["7", "8",   "9",  "x"],
   ["4", "5",   "6",  "-"],
   ["1", "2",   "3",  "+"],
   ["0",        ".",  "="],
@@ -117,14 +165,14 @@ function ArithCalc() {
     if (val === "+/-") { setDisplay((d) => d.startsWith("-") ? d.slice(1) : "-" + d); return; }
     if (val === "%") { setDisplay((d) => String(parseFloat(d) / 100)); return; }
 
-    if (["+", "-", "×", "/"].includes(val)) {
+    if (["+", "-", "x", "/"].includes(val)) {
       setPrev(display); setOp(val); setFresh(true); return;
     }
 
     if (val === "=") {
       if (!prev || !op) return;
       const a = parseFloat(prev), b = parseFloat(display);
-      const result = op === "+" ? a + b : op === "-" ? a - b : op === "×" ? a * b : a / b;
+      const result = op === "+" ? a + b : op === "-" ? a - b : op === "x" ? a * b : a / b;
       const str = isFinite(result) ? String(parseFloat(result.toFixed(10))) : "Error";
       setDisplay(str); setPrev(null); setOp(null); setFresh(false); return;
     }
@@ -141,7 +189,6 @@ function ArithCalc() {
 
   return (
     <div className="space-y-3">
-      {/* Display */}
       <div className="rounded-xl border bg-muted/30 px-4 py-3 text-right">
         {op && prev && (
           <p className="text-[11px] text-muted-foreground tabular-nums">{prev} {op}</p>
@@ -149,13 +196,12 @@ function ArithCalc() {
         <p className="text-3xl font-bold tabular-nums leading-none">{display}</p>
       </div>
 
-      {/* Buttons */}
       <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
         {BUTTONS.flat().map((btn, i) => {
-          const isOp     = ["+", "-", "×", "/"].includes(btn);
-          const isEq     = btn === "=";
-          const isClear  = btn === "C";
-          const isZero   = btn === "0";
+          const isOp    = ["+", "-", "x", "/"].includes(btn);
+          const isEq    = btn === "=";
+          const isClear = btn === "C";
+          const isZero  = btn === "0";
           return (
             <button
               key={i}
@@ -183,12 +229,11 @@ function ArithCalc() {
 type Tab = "currency" | "calc";
 
 export default function CalculatorWidget() {
-  const [open, setOpen]     = useState(false);
-  const [tab, setTab]       = useState<Tab>("currency");
+  const [open, setOpen] = useState(false);
+  const [tab, setTab]   = useState<Tab>("currency");
 
   return (
     <>
-      {/* Floating trigger */}
       <button
         onClick={() => setOpen(true)}
         className="fixed bottom-6 right-6 z-40 flex size-12 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30 text-primary-foreground transition-transform hover:scale-105 active:scale-95 print:hidden"
@@ -198,17 +243,14 @@ export default function CalculatorWidget() {
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-xs p-0 gap-0 overflow-hidden">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-xs p-0 gap-0 overflow-hidden">
           <DialogHeader className="px-5 pt-5 pb-0">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-base">Quick Tools</DialogTitle>
-            </div>
+            <DialogTitle className="text-base">Quick Tools</DialogTitle>
           </DialogHeader>
 
-          {/* Tabs */}
           <div className="flex border-b mx-5 mt-3">
             {([
-              { id: "currency", label: "USD → PHP", icon: DollarSign },
+              { id: "currency", label: "Currency", icon: DollarSign },
               { id: "calc",     label: "Calculator", icon: Calculator },
             ] as { id: Tab; label: string; icon: React.ElementType }[]).map(({ id, label, icon: Icon }) => (
               <button
