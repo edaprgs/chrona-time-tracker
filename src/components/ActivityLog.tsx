@@ -210,7 +210,7 @@ function EventRow({ event, confirmId, deletingId, onEdit, onDelete }: EventRowPr
 
   return (
     <div className={cn(
-      "group flex items-center gap-4 px-6 py-3 transition-colors",
+      "group flex items-center gap-3 px-4 py-3 transition-colors md:gap-4 md:px-6",
       isPending ? "bg-destructive/5" : "hover:bg-muted/20"
     )}>
       <div className={cn(
@@ -429,7 +429,7 @@ export default function ActivityLog() {
       <Card>
         <CardContent className="p-0">
           {/* Header */}
-          <div className="flex items-center justify-between border-b px-6 py-4">
+          <div className="flex items-center justify-between border-b px-4 py-3 md:px-6 md:py-4">
             <div className="flex items-center gap-2">
               <div className="flex size-7 items-center justify-center rounded-lg bg-muted">
                 <ClipboardList className="size-3.5 text-muted-foreground" />
@@ -509,7 +509,7 @@ export default function ActivityLog() {
                   <div key={day}>
                     <button
                       onClick={() => toggleDay(day)}
-                      className="flex w-full items-center justify-between bg-muted/30 px-6 py-2.5 text-left hover:bg-muted/50 transition-colors"
+                      className="flex w-full items-center justify-between bg-muted/30 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors md:px-6"
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

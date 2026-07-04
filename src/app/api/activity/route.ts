@@ -3,13 +3,13 @@ import { createClient } from "@supabase/supabase-js";
 
 // This endpoint is called by the VS Code companion extension.
 // Auth: the extension sends a long-lived personal API key (from the
-// `api_keys` table) in the Authorization header — not the user's
+// `api_keys` table) in the Authorization header - not the user's
 // short-lived Supabase session token, which expires every ~1 hour.
 
 // IMPORTANT: SUPABASE_SERVICE_ROLE_KEY must be set in .env.local (server-side only, never NEXT_PUBLIC_).
 // Without it, the api_keys lookup will fail and VS Code extension events will be rejected.
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  console.warn("[activity route] SUPABASE_SERVICE_ROLE_KEY not set — VS Code extension events will fail");
+  console.warn("[activity route] SUPABASE_SERVICE_ROLE_KEY not set - VS Code extension events will fail");
 }
 
 const supabaseAdmin = createClient(
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
 
 // The extension polls this to know whether to track activity at all.
 // The `sessions` table only gets a row at punch-out (after the confirmation
-// dialog), so it can never answer "are you punched in right now" — that's
+// dialog), so it can never answer "are you punched in right now" - that's
 // what `live_status` is for, written by Timer.tsx on every transition.
 export async function GET(req: NextRequest) {
   const userId = await userIdFromApiKey(req);

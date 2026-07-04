@@ -47,7 +47,7 @@ export default function StatCards() {
       label: "Focus Score",
       value: focusScore !== null ? `${focusScore}%` : "-",
       icon: Zap,
-      sub: focusScore !== null ? (focusGood ? "high focus this week" : focusModerate ? "moderate focus" : "low focus — check pauses") : "no data yet",
+      sub: focusScore !== null ? (focusGood ? "high focus this week" : focusModerate ? "moderate focus" : "low focus - check pauses") : "no data yet",
       highlight: false, critical: focusLow, warning: focusModerate, focusGood, focusModerate: false, focusLow: false,
     },
     {
@@ -60,11 +60,12 @@ export default function StatCards() {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
-      {cards.map(({ label, value, icon: Icon, sub, highlight, critical, warning, focusGood }) => (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-5">
+      {cards.map(({ label, value, icon: Icon, sub, highlight, critical, warning, focusGood }, idx) => (
         <Card
           key={label}
           className={cn(
+            idx === cards.length - 1 && cards.length % 2 !== 0 && "col-span-2 sm:col-span-1",
             "border transition-colors",
             highlight  && "border-primary/30 bg-primary/[0.03]",
             critical   && "border-destructive/30 bg-destructive/[0.03]",
@@ -72,7 +73,7 @@ export default function StatCards() {
             focusGood  && "border-emerald-400/30 bg-emerald-50/40 dark:bg-emerald-950/10",
           )}
         >
-          <CardContent className="p-5">
+          <CardContent className="p-3 md:p-5">
             <div className="flex items-start justify-between gap-2">
               <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{label}</p>
               <div className={cn(
@@ -94,7 +95,7 @@ export default function StatCards() {
               </div>
             </div>
             <p className={cn(
-              "mt-3 text-3xl font-bold tabular-nums leading-none",
+              "mt-2 text-2xl md:text-3xl font-bold tabular-nums leading-none",
               highlight  ? "text-primary"
               : critical ? "text-destructive"
               : warning  ? "text-amber-600 dark:text-amber-400"

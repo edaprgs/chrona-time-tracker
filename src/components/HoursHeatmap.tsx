@@ -45,7 +45,7 @@ export default function HoursHeatmap() {
   }, [sessions]);
 
   // One entry per week column (not just months that start) so the label row
-  // shares the exact same flex layout as the grid below it — a manual pixel
+  // shares the exact same flex layout as the grid below it - a manual pixel
   // offset (col * width) drifts out of alignment under rounding/zoom.
   const monthLabels = useMemo(() => {
     let lastMonth = -1;
@@ -82,7 +82,7 @@ export default function HoursHeatmap() {
             </div>
 
             <div>
-              {/* Month labels — one column per week, same width as the grid below,
+              {/* Month labels - one column per week, same width as the grid below,
                   so labels can never drift out of alignment with their column. */}
               <div className="mb-1 flex gap-px">
                 {monthLabels.map((label, wi) => (

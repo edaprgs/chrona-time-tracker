@@ -31,13 +31,13 @@ export default function TopTasks() {
 
   return (
     <Card>
-      <CardContent className="p-6">
-        <div className="mb-5 flex items-center justify-between">
+      <CardContent className="p-4 md:p-6">
+        <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex size-7 items-center justify-center rounded-lg bg-muted">
               <ListChecks className="size-3.5 text-muted-foreground" />
             </div>
-            <h2 className="font-semibold">Top Tasks</h2>
+            <h2 className="text-sm font-semibold md:text-base">Top Tasks</h2>
           </div>
           <p className="text-xs text-muted-foreground">This week</p>
         </div>

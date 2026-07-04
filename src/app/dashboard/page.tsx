@@ -17,35 +17,33 @@ export default function Home() {
         <Header />
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-8 md:py-8 md:space-y-8">
+      <div className="mx-auto max-w-7xl space-y-4 px-3 py-4 md:space-y-8 md:px-8 md:py-8">
         {/* Overtime alert */}
         <OvertimeBanner />
 
-        {/* Hero — Timer takes the full width top slot */}
+        {/* Hero - Timer takes the full width top slot */}
         <Timer />
 
         {/* Stat strip */}
         <StatCards />
 
-        {/* Charts + Top Tasks row */}
-        <div className="grid gap-6 lg:grid-cols-5">
-          <div className="lg:col-span-3">
+        {/* Charts + Weekly Cap row */}
+        <div className="grid gap-6 md:grid-cols-5">
+          <div className="md:col-span-3">
             <DailyChart />
           </div>
-          <div className="lg:col-span-2">
+          <div className="md:col-span-2">
             <WeeklyProgress />
           </div>
         </div>
 
-        {/* Top Tasks + Recent Activity + Notes */}
-        <div className="grid gap-6 lg:grid-cols-5">
-          <div className="space-y-6 lg:col-span-2">
-            <TopTasks />
-            <NotesWidget />
-          </div>
-          <div className="lg:col-span-3">
-            <RecentActivity />
-          </div>
+        {/* Top Tasks — full width */}
+        <TopTasks />
+
+        {/* Notes + Recent Activity — side by side */}
+        <div className="grid gap-4 md:grid-cols-2 md:gap-6">
+          <NotesWidget />
+          <RecentActivity />
         </div>
 
         {/* Activity log */}

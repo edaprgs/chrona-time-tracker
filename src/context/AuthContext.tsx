@@ -20,7 +20,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const PUBLIC_PATHS = ["/login", "/"];
-// /vscode-auth handles both signed-in and signed-out states itself — exempt from redirects.
+// /vscode-auth handles both signed-in and signed-out states itself - exempt from redirects.
 const UNGUARDED_PATHS = ["/vscode-auth"];
 
 export function AuthProvider({ children }: { children: ReactNode }) {

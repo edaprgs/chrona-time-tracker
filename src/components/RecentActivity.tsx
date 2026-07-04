@@ -12,14 +12,6 @@ import {
 import { cn } from "@/lib/utils";
 import type { Session } from "@/types/session";
 
-const PR_COLORS: Record<string, string> = {
-  open:      "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
-  in_review: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  approved:  "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
-  merged:    "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
-  done:      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-};
-
 function dateLabel(dateStr: string): string {
   const d = parseISO(dateStr);
   if (isToday(d))     return "Today";
@@ -52,21 +44,20 @@ function groupByDate(sessions: Session[]) {
 export default function RecentActivity() {
   const { sessions, loading } = useSessionsContext();
 
-  const recent = useMemo(
-    () => sessions.slice(0, 40),
-    [sessions]
-  );
-
-  const groups = useMemo(() => groupByDate(recent), [recent]);
+  const recent  = useMemo(() => sessions.filter((s) => {
+    const d = parseISO(s.date);
+    return isToday(d) || isYesterday(d);
+  }), [sessions]);
+  const groups  = useMemo(() => groupByDate(recent), [recent]);
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="p-6">
+      <Card className="h-full">
+        <CardContent className="p-4 md:p-6">
           <div className="space-y-3">
-            {[...Array(4)].map((_, i) => (
+            {[...Array(3)].map((_, i) => (
               <div key={i} className="flex gap-3 animate-pulse">
-                <div className="size-9 rounded-xl bg-muted shrink-0" />
+                <div className="size-8 rounded-xl bg-muted shrink-0" />
                 <div className="flex-1 space-y-1.5 pt-1">
                   <div className="h-3.5 w-40 rounded bg-muted" />
                   <div className="h-3 w-24 rounded bg-muted" />
@@ -81,16 +72,14 @@ export default function RecentActivity() {
 
   if (sessions.length === 0) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-muted">
-            <Clock className="size-6 text-muted-foreground" />
+      <Card className="h-full">
+        <CardContent className="flex h-full flex-col items-center justify-center gap-3 py-12 text-center">
+          <div className="flex size-10 items-center justify-center rounded-2xl bg-muted">
+            <Clock className="size-5 text-muted-foreground" />
           </div>
           <div>
-            <p className="font-semibold">No sessions yet</p>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Punch in above to start logging your work.
-            </p>
+            <p className="font-semibold text-sm">No sessions yet</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Punch in to start logging.</p>
           </div>
         </CardContent>
       </Card>
@@ -98,23 +87,26 @@ export default function RecentActivity() {
   }
 
   return (
-    <Card>
-      <CardContent className="p-0">
+    <Card className="flex h-full flex-col overflow-hidden">
+      <CardContent className="flex h-full min-h-0 flex-col p-0">
         {/* Header */}
-        <div className="flex items-center justify-between border-b px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 md:px-6 md:py-4">
           <div className="flex items-center gap-2">
             <div className="flex size-7 items-center justify-center rounded-lg bg-muted">
               <Clock className="size-3.5 text-muted-foreground" />
             </div>
-            <h2 className="font-semibold">Recent Activity</h2>
+            <h2 className="text-sm font-semibold md:text-base">Recent Activity</h2>
           </div>
-          <Link href="/sessions" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <Link
+            href="/sessions"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
             View all <ArrowUpRight className="size-3" />
           </Link>
         </div>
 
-        {/* Groups by date */}
-        <div className="divide-y">
+        {/* Scrollable session list */}
+        <div className="min-h-0 flex-1 overflow-y-auto divide-y">
           {groups.map(([date, daySessions]) => {
             const totalMin = daySessions.reduce((s, x) => s + Number(x.duration_minutes), 0);
             const avgFocus = (() => {
@@ -126,11 +118,11 @@ export default function RecentActivity() {
             return (
               <div key={date}>
                 {/* Date header */}
-                <div className="flex items-center justify-between bg-muted/30 px-6 py-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <div className="flex items-center justify-between bg-muted/30 px-4 py-1.5 md:px-6">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                     {dateLabel(date)}
                   </span>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {avgFocus !== null && <FocusPip score={avgFocus} />}
                     <span className="font-medium tabular-nums">{formatDuration(totalMin)}</span>
                   </div>
@@ -141,12 +133,11 @@ export default function RecentActivity() {
                   {daySessions.map((session) => (
                     <div
                       key={session.id}
-                      className="flex items-start gap-4 px-6 py-3.5 hover:bg-muted/20 transition-colors"
+                      className="flex items-start gap-3 px-4 py-2.5 hover:bg-muted/20 transition-colors md:px-6"
                     >
-                      {/* Color dot / time indicator */}
-                      <div className="flex flex-col items-center gap-1 pt-0.5">
+                      <div className="pt-1.5 shrink-0">
                         <div className={cn(
-                          "size-2 rounded-full mt-1",
+                          "size-1.5 rounded-full",
                           session.focus_score != null
                             ? Number(session.focus_score) >= 80 ? "bg-emerald-400"
                               : Number(session.focus_score) >= 60 ? "bg-amber-400"
@@ -155,42 +146,27 @@ export default function RecentActivity() {
                         )} />
                       </div>
 
-                      {/* Main content */}
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate font-medium leading-tight">
-                              {session.task}
-                              {session.is_split && (
-                                <span title="Split session">
-                                  <SplitSquareHorizontal className="ml-1.5 inline size-3 text-blue-400" />
-                                </span>
-                              )}
-                            </p>
-                            {session.description && (
-                              <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                                {session.description}
-                              </p>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="truncate text-sm font-medium leading-tight">
+                            {session.task}
+                            {session.is_split && (
+                              <SplitSquareHorizontal className="ml-1.5 inline size-3 text-blue-400" />
                             )}
-                          </div>
-
-                          {/* Right side: duration */}
+                          </p>
                           <span className="shrink-0 tabular-nums text-sm font-semibold text-primary">
                             {formatDuration(Number(session.duration_minutes))}
                           </span>
                         </div>
 
-                        {/* Meta row */}
-                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                           {session.start_time && (
                             <span className="text-[11px] text-muted-foreground tabular-nums">
                               {format(new Date(session.start_time), "h:mm a")}
                               {session.end_time && ` – ${format(new Date(session.end_time), "h:mm a")}`}
                             </span>
                           )}
-                          {session.focus_score != null && (
-                            <FocusPip score={Number(session.focus_score)} />
-                          )}
+                          {session.focus_score != null && <FocusPip score={Number(session.focus_score)} />}
                           {session.github_pr && (
                             <a
                               href={session.github_pr}
@@ -207,15 +183,11 @@ export default function RecentActivity() {
                               {formatDistanceToNow(new Date(session.created_at), { addSuffix: true })}
                             </span>
                           )}
+                          {session.focus_score !== null && Number(session.focus_score) < 80 && (
+                            <Coffee className="size-3 text-muted-foreground/40" />
+                          )}
                         </div>
                       </div>
-
-                      {/* Pause icon if paused during session */}
-                      {session.focus_score !== null && Number(session.focus_score) < 80 && (
-                        <span title="Had pauses">
-                          <Coffee className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/50" />
-                        </span>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -225,9 +197,9 @@ export default function RecentActivity() {
         </div>
 
         {sessions.length > 40 && (
-          <div className="border-t px-6 py-3 text-center">
+          <div className="shrink-0 border-t px-4 py-2.5 text-center md:px-6">
             <Link href="/sessions" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              See all {sessions.length} sessions →
+              See all {sessions.length} sessions
             </Link>
           </div>
         )}

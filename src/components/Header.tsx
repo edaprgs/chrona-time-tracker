@@ -32,7 +32,7 @@ export default function Header() {
 
   return (
     <div className="flex items-center gap-3">
-      {/* Hamburger — mobile only */}
+      {/* Hamburger - mobile only */}
       <button
         onClick={toggle}
         className="flex size-9 shrink-0 items-center justify-center rounded-lg border text-muted-foreground hover:bg-muted md:hidden"

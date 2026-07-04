@@ -24,11 +24,11 @@ export default function ReportsPage() {
         <HoursHeatmap />
 
         {/* Charts row */}
-        <div className="grid gap-6 lg:grid-cols-5">
-          <div className="lg:col-span-3">
+        <div className="grid gap-6 md:grid-cols-5">
+          <div className="md:col-span-3">
             <TaskBreakdown />
           </div>
-          <div className="lg:col-span-2">
+          <div className="md:col-span-2">
             <MonthlyTrend />
           </div>
         </div>

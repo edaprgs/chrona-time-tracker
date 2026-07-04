@@ -28,7 +28,7 @@ export default function NotesWidget() {
 
   return (
     <Card>
-      <CardContent className="p-6">
+      <CardContent className="p-4 md:p-6">
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -46,13 +46,13 @@ export default function NotesWidget() {
         </div>
 
         {notes.length === 0 ? (
-          /* Empty state — big tap target to create first note */
+          /* Empty state - big tap target to create first note */
           <Link
             href="/notes"
             className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
           >
             <StickyNote className="size-6 opacity-30" />
-            <span>No notes yet — click to add one</span>
+            <span>No notes yet - click to add one</span>
           </Link>
         ) : (
           <div className="space-y-2">

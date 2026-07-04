@@ -19,7 +19,7 @@ const config = {
     iconClass: "text-amber-500",
     barClass: "bg-amber-400",
     bannerClass: "border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
-    message: "Approaching your weekly cap — log carefully.",
+    message: "Approaching your weekly cap - log carefully.",
   },
   danger: {
     icon: AlertTriangle,
@@ -46,7 +46,7 @@ export default function WeeklyProgress() {
 
   return (
     <Card className="h-full">
-      <CardContent className="p-6">
+      <CardContent className="p-4 md:p-6">
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className={cn(
@@ -92,14 +92,14 @@ export default function WeeklyProgress() {
           <Flame className={cn("size-4 shrink-0", isHot ? "text-orange-500" : streak > 0 ? "text-muted-foreground" : "text-muted-foreground/30")} />
           <div className="min-w-0">
             {streak === 0 ? (
-              <p className="text-xs text-muted-foreground">No active streak — log a session to start one.</p>
+              <p className="text-xs text-muted-foreground">No active streak - log a session to start one.</p>
             ) : (
               <>
                 <p className={cn("text-sm font-semibold", isHot && "text-orange-700 dark:text-orange-300")}>
                   {streak} day{streak !== 1 ? "s" : ""} in a row
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {isHot ? "On fire — keep it going" : streak === 1 ? "Good start! Come back tomorrow" : "Building momentum"}
+                  {isHot ? "On fire - keep it going" : streak === 1 ? "Good start! Come back tomorrow" : "Building momentum"}
                 </p>
               </>
             )}

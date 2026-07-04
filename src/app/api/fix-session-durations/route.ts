@@ -90,7 +90,7 @@ export async function GET(req: Request) {
     let correct: number;
 
     if (s.is_split && s.parent_session_id) {
-      // Child split session — pauses live on the parent, not here.
+      // Child split session - pauses live on the parent, not here.
       // Find the parent in our session list.
       const parent = (sessions as SessionRow[]).find((x) => x.id === s.parent_session_id);
       if (!parent || !parent.start_time || !parent.end_time) continue;
@@ -108,7 +108,7 @@ export async function GET(req: Request) {
 
       correct = Math.max(1, totalWorkedMin - parentWorkedMin);
     } else {
-      // Regular session or split parent — straightforward subtraction
+      // Regular session or split parent - straightforward subtraction
       correct = workedMinutes(startMs, endMs, pauses);
     }
 
@@ -119,7 +119,7 @@ export async function GET(req: Request) {
   }
 
   if (updates.length === 0) {
-    return NextResponse.json({ message: "All session durations already correct — nothing to update.", updates: [] });
+    return NextResponse.json({ message: "All session durations already correct - nothing to update.", updates: [] });
   }
 
   // 3. Apply updates in batches

@@ -183,7 +183,7 @@ export default function ViewSessionDialog({ open, setOpen, session }: Props) {
             </div>
           )}
 
-          {/* No time range — just show duration plainly */}
+          {/* No time range - just show duration plainly */}
           {!hasTimeRange && (
             <div className="flex items-center justify-between rounded-xl border px-4 py-3">
               <span className="text-sm font-medium text-muted-foreground">Duration</span>

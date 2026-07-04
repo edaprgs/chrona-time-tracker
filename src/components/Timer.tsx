@@ -63,7 +63,7 @@ function broadcastTimerEvent(type: "punch-in" | "pause" | "resume" | "punch-out"
   pushLiveStatus(type);
 }
 
-// Real-time punch state for the VS Code extension to poll — the `sessions`
+// Real-time punch state for the VS Code extension to poll - the `sessions`
 // table only gets a row at punch-out, so it can't answer "are you punched in
 // right now." This writes a tiny status row on every transition instead.
 async function pushLiveStatus(type: "punch-in" | "pause" | "resume" | "punch-out") {
@@ -164,7 +164,7 @@ export default function Timer() {
           saveState(next);
           return next;
         });
-        toast(`Timer auto-paused — no activity for ${idleMin} min. Resume when you're back.`, "destructive");
+        toast(`Timer auto-paused - no activity for ${idleMin} min. Resume when you're back.`, "destructive");
         broadcastTimerEvent("pause");
       }
     }, IDLE_CHECK_MS);
@@ -273,10 +273,10 @@ export default function Timer() {
         />
 
         <CardContent className="px-4 py-5 md:px-8 md:py-7">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
-            {/* Left — time display + status */}
-            <div className="flex items-center gap-4 md:gap-6">
+            {/* Left - time display + status */}
+            <div className="flex items-center gap-3 md:gap-6">
               {/* Animated clock face */}
               <div className="relative shrink-0">
                 {mounted && isRecording && (
@@ -286,7 +286,7 @@ export default function Timer() {
                   viewBox="0 0 32 32"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
-                  className="size-20 drop-shadow-sm"
+                  className="size-14 md:size-20 drop-shadow-sm"
                 >
                   <style>{`
                     .clock-bg-rec   { fill: #ec4899; }
@@ -343,7 +343,7 @@ export default function Timer() {
                     <line x1="16" y1="20" x2="16" y2="13.5" stroke="white" strokeWidth="1.6" strokeLinecap="round" />
                   </g>
 
-                  {/* Second hand — only animates when recording */}
+                  {/* Second hand - only animates when recording */}
                   <g className={mounted && isRecording ? "clock-hand-sec" : "clock-hand-sec-paused"}>
                     <line
                       x1="16" y1="20" x2="20.5" y2="16"
@@ -381,7 +381,7 @@ export default function Timer() {
                 {/* Big time */}
                 <p
                   className={cn(
-                    "font-mono text-5xl font-bold tabular-nums leading-none tracking-tight",
+                    "font-mono text-4xl md:text-5xl font-bold tabular-nums leading-none tracking-tight",
                     mounted && isRecording ? "text-primary" : mounted && isPaused ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
                   )}
                 >
@@ -410,14 +410,14 @@ export default function Timer() {
               </div>
             </div>
 
-            {/* Right — actions */}
+            {/* Right - actions */}
             <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
                 <Button
                   size="lg"
                   onClick={handleStart}
                   disabled={mounted && isRecording}
-                  className="gap-2 px-6"
+                  className="col-span-2 gap-2 md:col-span-1 md:px-6"
                 >
                   <Play className="size-4" />
                   {mounted && timerState.punchedInAt ? "Resume" : "Punch In"}

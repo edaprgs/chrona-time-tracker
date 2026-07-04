@@ -36,14 +36,14 @@ export default function ReportsSummary() {
     <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
       {cards.map(({ label, value, icon: Icon, sub }) => (
         <Card key={label}>
-          <CardContent className="p-5">
+          <CardContent className="p-3 md:p-5">
             <div className="flex items-start justify-between gap-2">
               <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{label}</p>
               <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted">
                 <Icon className="size-3.5 text-muted-foreground" />
               </div>
             </div>
-            <p className="mt-3 text-3xl font-bold tabular-nums leading-none">{value}</p>
+            <p className="mt-2 text-2xl font-bold tabular-nums leading-none md:text-3xl">{value}</p>
             <p className="mt-1.5 text-xs text-muted-foreground">{sub}</p>
           </CardContent>
         </Card>

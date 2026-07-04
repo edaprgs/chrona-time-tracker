@@ -15,7 +15,7 @@ interface ActivityItem {
 const ACTIVITIES: ActivityItem[] = [
   { icon: FileCode2,  label: "Edited Timer.tsx (+18 lines)", color: "text-violet-500" },
   { icon: GitCommit,  label: "Committed: \"fix punch state\"", color: "text-emerald-500" },
-  { icon: Globe,      label: "Visited GitHub — 2m 14s",       color: "text-sky-500" },
+  { icon: Globe,      label: "Visited GitHub - 2m 14s",       color: "text-sky-500" },
 ];
 
 const WEEK_BARS = [40, 55, 35, 70, 0]; // Mon–Fri base heights, last one is "today"
@@ -113,7 +113,7 @@ export default function LandingDemo() {
             Earned this session: <span className="font-semibold text-foreground">${earned}</span>
           </p>
         ) : (
-          <p className="mt-1 text-xs text-muted-foreground">Fix login bug — Nudgine LLC</p>
+          <p className="mt-1 text-xs text-muted-foreground">Fix login bug - Nudgine LLC</p>
         )}
 
         <button

@@ -40,7 +40,7 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
   const { sessions, loading: sessionsLoading } = useSessionsContext();
   const { hourlyRate, contractorName, clientName, workspaceName, paymentTermsDays } = useWorkspace();
 
-  // Exchange rates — base is always USD (the contract pays in USD)
+  // Exchange rates - base is always USD (the contract pays in USD)
   const { rates, loading: ratesLoading, error: ratesError, convert, updatedAt } = useExchangeRate("USD");
 
   const isUSD     = displayCurrency === "USD";
@@ -61,7 +61,7 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage    = Math.min(page, totalPages);
 
-  // Deterministic per period — same invoice number every time you reopen the
+  // Deterministic per period - same invoice number every time you reopen the
   // same date range, rather than a random/incrementing id that would change
   // every render and make the document untrustworthy as a reference.
   const invoiceNumber = useMemo(() => {
@@ -126,18 +126,18 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
       )}
 
       {/* Summary cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4">
         <Card>
-          <CardContent className="space-y-1 p-6">
-            <p className="text-sm text-muted-foreground">Total Hours</p>
-            <p className="text-3xl font-bold">{totalHours.toFixed(2)}h</p>
+          <CardContent className="space-y-1 p-4 md:p-6">
+            <p className="text-xs text-muted-foreground md:text-sm">Total Hours</p>
+            <p className="text-2xl font-bold md:text-3xl">{totalHours.toFixed(2)}h</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="space-y-1 p-6">
-            <p className="text-sm text-muted-foreground">Rate</p>
-            <p className="text-3xl font-bold">
+          <CardContent className="space-y-1 p-4 md:p-6">
+            <p className="text-xs text-muted-foreground md:text-sm">Rate</p>
+            <p className="text-2xl font-bold md:text-3xl">
               {isUSD
                 ? `$${hourlyRate}/hr`
                 : `${displayAmount(hourlyRate)}/hr`}
@@ -148,10 +148,10 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
           </CardContent>
         </Card>
 
-        <Card className="border-primary/40 bg-primary/5">
-          <CardContent className="space-y-1 p-6">
-            <p className="text-sm text-muted-foreground">Amount Due</p>
-            <p className="text-3xl font-bold text-primary">
+        <Card className="col-span-2 border-primary/40 bg-primary/5 sm:col-span-1">
+          <CardContent className="space-y-1 p-4 md:p-6">
+            <p className="text-xs text-muted-foreground md:text-sm">Amount Due</p>
+            <p className="text-2xl font-bold text-primary md:text-3xl">
               {totalDisplay !== null ? fmt(totalDisplay, symbol) : `$${totalUSD.toFixed(2)}`}
             </p>
             {!isUSD && (
@@ -199,11 +199,11 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <p className="text-sm text-muted-foreground">
           {filtered.length} session{filtered.length !== 1 ? "s" : ""} in this period
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="gap-2"
             onClick={() => exportSessionsCsv({
               sessions: filtered,
@@ -232,63 +232,61 @@ export default function InvoiceTable({ start, end, displayCurrency }: Props) {
           No sessions in this period. Adjust the date range above.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border">
+        <div className="rounded-xl border">
           <Table className="table-fixed w-full">
             <colgroup>
-              <col className="w-[110px]" />
-              <col className="w-[22%]" />
-              <col />
+              <col className="w-[72px]" />
+              <col className="w-[40%]" />
+              <col className="w-[64px]" />
               <col className="w-[90px]" />
-              <col className="w-[110px]" />
-              {showPHP && <col className="w-[110px]" />}
-              <col className="w-[60px]" />
+              {showPHP && <col className="w-[90px]" />}
+              <col className="w-[32px]" />
             </colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Task</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Amount ({displayCurrency})</TableHead>
-                {showPHP && <TableHead>≈ PHP</TableHead>}
-                <TableHead>PR</TableHead>
+                <TableHead className="text-xs">Date</TableHead>
+                <TableHead className="text-xs">Task &amp; Description</TableHead>
+                <TableHead className="text-xs">Time</TableHead>
+                <TableHead className="text-xs text-right">Amt ({displayCurrency})</TableHead>
+                {showPHP && <TableHead className="text-xs text-right">≈ PHP</TableHead>}
+                <TableHead className="text-xs">PR</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((session, idx) => {
-                const hours    = Number(session.duration_minutes) / 60;
-                const usdAmt   = hours * hourlyRate;
-                const php      = phpAmount(usdAmt);
-                // Pagination only affects what's shown on screen — printing
-                // (Print / Save PDF) always includes every session in the period.
-                const inPage   = idx >= (safePage - 1) * PAGE_SIZE && idx < safePage * PAGE_SIZE;
+                const hours  = Number(session.duration_minutes) / 60;
+                const usdAmt = hours * hourlyRate;
+                const php    = phpAmount(usdAmt);
+                const inPage = idx >= (safePage - 1) * PAGE_SIZE && idx < safePage * PAGE_SIZE;
                 return (
                   <TableRow key={session.id} className={cn(!inPage && "hidden print:table-row")}>
-                    <TableCell className="whitespace-nowrap text-muted-foreground">
-                      {format(parseISO(session.date), "MMM d, yyyy")}
+                    <TableCell className="text-xs text-muted-foreground align-top pt-3">
+                      {format(parseISO(session.date), "MMM d")}
                     </TableCell>
-                    <TableCell className="truncate font-medium">{session.task}</TableCell>
-                    <TableCell className="truncate text-muted-foreground">
-                      {session.description || "-"}
+                    <TableCell className="align-top pt-3 min-w-0">
+                      <p className="truncate text-sm font-medium leading-tight">{session.task}</p>
+                      {session.description && (
+                        <p className="truncate text-xs text-muted-foreground mt-0.5">{session.description}</p>
+                      )}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap font-medium">
+                    <TableCell className="text-sm font-medium align-top pt-3">
                       {formatDuration(Number(session.duration_minutes))}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap font-medium text-primary">
+                    <TableCell className="text-right font-semibold text-primary align-top pt-3 text-sm">
                       {displayAmount(usdAmt)}
                     </TableCell>
                     {showPHP && (
-                      <TableCell className="whitespace-nowrap text-emerald-600 dark:text-emerald-400">
+                      <TableCell className="text-right text-xs text-emerald-600 dark:text-emerald-400 align-top pt-3">
                         {php ?? "-"}
                       </TableCell>
                     )}
-                    <TableCell>
+                    <TableCell className="align-top pt-3">
                       {session.github_pr ? (
                         <a href={session.github_pr} target="_blank" rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline">
-                          <Globe className="size-3.5" /> PR
+                          className="inline-flex items-center gap-1 text-primary hover:underline text-xs">
+                          <Globe className="size-3" /> PR
                         </a>
-                      ) : <span className="text-muted-foreground/50 text-xs">-</span>}
+                      ) : <span className="text-muted-foreground/40 text-xs">-</span>}
                     </TableCell>
                   </TableRow>
                 );

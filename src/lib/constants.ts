@@ -5,7 +5,9 @@ export const DEFAULTS = {
   WEEKLY_HOUR_CAP:    40,
   INVOICE_CYCLE_DAYS: 14,
   PAYMENT_TERMS_DAYS: 15,
-  WEEK_STARTS_ON:     1 as const,  // Monday
+  WEEK_STARTS_ON:     1 as const,  // Monday (legacy, use WORK_START_DAY)
+  WORK_START_DAY:     1,           // Monday
+  WORK_END_DAY:       5,           // Friday
   WORKSPACE_NAME:     "My Workspace",
   CONTRACTOR_NAME:    "",
   CLIENT_NAME:        "",

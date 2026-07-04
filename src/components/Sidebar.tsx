@@ -5,12 +5,12 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Table2, Receipt, Settings, LogOut,
   ChevronDown, Plus, Check, AlertTriangle, X,
-  BarChart2, StickyNote,
+  BarChart2, StickyNote, ChevronsLeft, ChevronsRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { useWorkspace } from "@/context/WorkspaceContext";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import NewWorkspaceDialog from "@/components/NewWorkspaceDialog";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -36,6 +36,19 @@ export default function Sidebar() {
   const [showNewWorkspace, setShowNewWorkspace] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [collapsed, setCollapsed]   = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("sidebar-collapsed");
+    if (stored === "true") setCollapsed(true);
+  }, []);
+
+  function toggleCollapse() {
+    setCollapsed((v) => {
+      localStorage.setItem("sidebar-collapsed", String(!v));
+      return !v;
+    });
+  }
 
   async function handleLogout() {
     setSigningOut(true);
@@ -194,16 +207,75 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Desktop sidebar — in flow, sticky */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r bg-card/95 backdrop-blur-sm print:hidden md:flex">
-        {sidebarContent}
+      {/* Desktop sidebar - collapsible */}
+      <aside className={cn(
+        "sticky top-0 hidden h-screen shrink-0 flex-col border-r bg-card/95 backdrop-blur-sm print:hidden md:flex transition-all duration-200",
+        collapsed ? "w-[60px]" : "w-64"
+      )}>
+        {collapsed ? (
+          <div className="flex h-full flex-col items-center py-4 gap-2">
+            {/* Logo icon */}
+            <div className="mb-2">
+              <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-8 shrink-0">
+                <rect width="32" height="32" rx="7" fill="#ec4899"/>
+                <circle cx="16" cy="20" r="8.5" fill="white" fillOpacity="0.15" stroke="white" strokeWidth="1.8"/>
+                <line x1="16" y1="20" x2="16" y2="13.5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="16" cy="20" r="1.2" fill="white"/>
+              </svg>
+            </div>
+
+            {/* Nav icon links */}
+            <nav className="flex-1 flex flex-col items-center gap-0.5 w-full px-1.5">
+              {NAV_LINKS.map(({ href, label, icon: Icon }) => {
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    title={label}
+                    className={cn(
+                      "flex size-9 items-center justify-center rounded-xl transition-all",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="size-4 shrink-0" />
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* User avatar */}
+            <Link href="/profile" title={user?.email ?? ""} className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary ring-1 ring-primary/20 hover:ring-2">
+              {initials}
+            </Link>
+
+            {/* Expand button */}
+            <button onClick={toggleCollapse} title="Expand sidebar" className="flex size-9 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors">
+              <ChevronsRight className="size-4" />
+            </button>
+          </div>
+        ) : (
+          <>
+            {sidebarContent}
+            {/* Collapse button */}
+            <button
+              onClick={toggleCollapse}
+              title="Collapse sidebar"
+              className="absolute right-2 top-5 flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+            >
+              <ChevronsLeft className="size-4" />
+            </button>
+          </>
+        )}
       </aside>
 
-      {/* Mobile overlay */}
+      {/* Mobile overlay - full screen sidebar */}
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden" onClick={close} />
-          <aside className="fixed inset-y-0 left-0 z-50 w-72 border-r bg-card shadow-xl md:hidden">
+          <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden" onClick={close} />
+          <aside className="fixed inset-0 z-50 w-full max-w-xs border-r bg-card shadow-xl md:hidden overflow-y-auto">
             {sidebarContent}
           </aside>
         </>
@@ -222,7 +294,7 @@ export default function Sidebar() {
             </div>
             <DialogDescription>
               You&apos;ll be signed out of your account. Any unsaved timer progress will be
-              preserved in your browser — just sign back in to continue.
+              preserved in your browser - just sign back in to continue.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">

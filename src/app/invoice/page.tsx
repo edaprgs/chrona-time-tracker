@@ -32,15 +32,12 @@ export default function InvoicePage() {
       />
 
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:space-y-8 md:px-6 md:py-10 print:px-0 print:py-4">
-      <div className="flex flex-wrap items-end gap-4 print:hidden">
-        <div className="flex-1">
-          <InvoicePeriodPicker
-            start={start}
-            end={end}
-            onChange={(s, e) => { setStart(s); setEnd(e); }}
-          />
-        </div>
-
+      <div className="space-y-3 print:hidden">
+        <InvoicePeriodPicker
+          start={start}
+          end={end}
+          onChange={(s, e) => { setStart(s); setEnd(e); }}
+        />
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground">Display currency</p>
           <select

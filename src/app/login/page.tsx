@@ -106,7 +106,7 @@ export default function LoginPage() {
           {/* Sign-up heading context */}
           {!isSignIn && (
             <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
-              One account, unlimited workspaces — add a separate workspace for each client or job, all under the same login.
+              One account, unlimited workspaces - add a separate workspace for each client or job, all under the same login.
             </div>
           )}
 
@@ -151,7 +151,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Confirm password — signup only */}
+          {/* Confirm password - signup only */}
           {!isSignIn && (
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Confirm Password</label>

@@ -203,7 +203,7 @@ export default function SessionDialog({
       }
 
     } else {
-      // Timer-based — compute focus score
+      // Timer-based - compute focus score
       const endISO = new Date().toISOString();
       const score = focusScore;
       if (split) {
@@ -273,7 +273,7 @@ export default function SessionDialog({
             <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
               <SplitSquareHorizontal className="mt-0.5 size-4 shrink-0" />
               <div>
-                <p className="font-medium">Session crosses midnight — will be split</p>
+                <p className="font-medium">Session crosses midnight - will be split</p>
                 <p className="mt-0.5 text-xs opacity-80">
                   <span className="font-medium">{activeSplit.first.date}:</span> {activeSplit.first.duration_minutes}m
                   {" · "}
@@ -344,7 +344,7 @@ export default function SessionDialog({
           </div>
 
           <Textarea
-            placeholder="Description — what did you work on?"
+            placeholder="Description - what did you work on?"
             rows={3}
             value={description}
             onChange={(e) => setDesc(e.target.value)}

@@ -9,7 +9,7 @@ const FEATURES = [
   {
     icon: Clock3,
     title: "One-click time tracking",
-    description: "Punch in, pause, and punch out with automatic idle detection and midnight auto-split — no manual math.",
+    description: "Punch in, pause, and punch out with automatic idle detection and midnight auto-split - no manual math.",
   },
   {
     icon: Code2,
@@ -19,17 +19,17 @@ const FEATURES = [
   {
     icon: BarChart2,
     title: "Reports that prove your work",
-    description: "GitHub-style activity heatmap, task breakdowns, and trend charts — real evidence behind every invoiced hour.",
+    description: "GitHub-style activity heatmap, task breakdowns, and trend charts - real evidence behind every invoiced hour.",
   },
   {
     icon: Receipt,
     title: "Invoices in one click",
-    description: "Pick a date range, print a client-ready PDF or export a CSV — with live currency conversion built in.",
+    description: "Pick a date range, print a client-ready PDF or export a CSV - with live currency conversion built in.",
   },
 ];
 
 const STEPS = [
-  { title: "Punch in", description: "Start a session for any task — Chrona tracks the clock and your focus score." },
+  { title: "Punch in", description: "Start a session for any task - Chrona tracks the clock and your focus score." },
   { title: "Work normally", description: "VS Code and Chrome extensions log your real activity in the background." },
   { title: "Get paid accurately", description: "Generate an invoice backed by real, timestamped proof of work." },
 ];

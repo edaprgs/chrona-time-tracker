@@ -133,8 +133,8 @@ export default function SessionsTable() {
   return (
     <>
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="relative min-w-48 flex-1">
+      <div className="space-y-2">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-9"
@@ -143,40 +143,39 @@ export default function SessionsTable() {
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
-
-        <div className="flex items-center gap-2">
-          <div className="space-y-0.5">
-            <p className="text-xs text-muted-foreground">From</p>
-            <Input type="date" className="w-36" value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="space-y-0.5 flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">From</p>
+              <Input type="date" className="w-full" value={dateFrom}
+                onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
+            </div>
+            <span className="mt-4 text-muted-foreground text-sm">-</span>
+            <div className="space-y-0.5 flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">To</p>
+              <Input type="date" className="w-full" value={dateTo}
+                onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
+            </div>
           </div>
-          <span className="mt-4 text-muted-foreground">→</span>
           <div className="space-y-0.5">
-            <p className="text-xs text-muted-foreground">To</p>
-            <Input type="date" className="w-36" value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
+            <p className="text-xs text-muted-foreground">Status</p>
+            <select
+              className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+              value={prFilter}
+              onChange={(e) => { setPrFilter(e.target.value as PrStatus | ""); setPage(1); }}
+            >
+              <option value="">All</option>
+              {PR_STATUS_CYCLE.map((s) => (
+                <option key={s} value={s}>{PR_STATUS_CONFIG[s].label}</option>
+              ))}
+            </select>
           </div>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground">
+              <X className="size-3.5" /> Clear
+            </Button>
+          )}
         </div>
-
-        <div className="space-y-0.5">
-          <p className="text-xs text-muted-foreground">PR Status</p>
-          <select
-            className="h-9 rounded-md border border-border bg-background px-3 text-sm"
-            value={prFilter}
-            onChange={(e) => { setPrFilter(e.target.value as PrStatus | ""); setPage(1); }}
-          >
-            <option value="">All</option>
-            {PR_STATUS_CYCLE.map((s) => (
-              <option key={s} value={s}>{PR_STATUS_CONFIG[s].label}</option>
-            ))}
-          </select>
-        </div>
-
-        {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground">
-            <X className="size-3.5" /> Clear
-          </Button>
-        )}
       </div>
 
       <p className="text-sm text-muted-foreground">
@@ -193,17 +192,16 @@ export default function SessionsTable() {
         </div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-xl border">
-            <Table className="table-fixed w-full">
+          <div className="overflow-x-auto rounded-xl border">
+            <Table className="table-fixed w-full min-w-[560px]">
               <colgroup>
-                <col className="w-[110px]" />
-                <col className="w-[22%]" />
-                <col />
-                <col className="w-[90px]" />
-                <col className="w-[70px]" />
-                <col className="w-[90px]" />
-                <col className="w-[110px]" />
+                <col className="w-[100px]" />
+                <col className="w-[38%]" />
                 <col className="w-[80px]" />
+                <col className="w-[60px]" />
+                <col className="w-[80px]" />
+                <col className="w-[100px]" />
+                <col className="w-[72px]" />
               </colgroup>
               <TableHeader>
                 <TableRow>
@@ -214,17 +212,16 @@ export default function SessionsTable() {
                   </TableHead>
                   <TableHead>
                     <button onClick={() => handleSort("task")} className="flex items-center font-medium hover:text-foreground">
-                      Task <SortIcon col="task" />
+                      Task &amp; Description <SortIcon col="task" />
                     </button>
                   </TableHead>
-                  <TableHead>Description</TableHead>
                   <TableHead>
                     <button onClick={() => handleSort("duration")} className="flex items-center font-medium hover:text-foreground">
                       Duration <SortIcon col="duration" />
                     </button>
                   </TableHead>
                   <TableHead>Focus</TableHead>
-                  <TableHead className="whitespace-nowrap">Pull Request</TableHead>
+                  <TableHead className="whitespace-nowrap">PR</TableHead>
                   <TableHead className="whitespace-nowrap">Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -233,21 +230,22 @@ export default function SessionsTable() {
               <TableBody>
                 {paginated.map((session) => (
                   <TableRow key={session.id} className={session.is_split ? "bg-muted/30" : ""}>
-                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                    <TableCell className="text-xs text-muted-foreground align-top pt-3">
                       {format(parseISO(session.date), "MMM d, yyyy")}
                       {session.is_split && (
-                        <span className="ml-1.5 text-xs text-blue-500" title="Split session">↗</span>
+                        <span className="ml-1 text-blue-500" title="Split session">↗</span>
                       )}
                     </TableCell>
 
-                    <TableCell className="truncate font-medium">
-                      {search ? <Highlight text={session.task} query={search} /> : session.task}
-                    </TableCell>
-
-                    <TableCell className="truncate text-muted-foreground">
-                      {session.description
-                        ? search ? <Highlight text={session.description} query={search} /> : session.description
-                        : "-"}
+                    <TableCell className="align-top pt-3 min-w-0">
+                      <p className="truncate text-sm font-medium leading-tight">
+                        {search ? <Highlight text={session.task} query={search} /> : session.task}
+                      </p>
+                      {session.description && (
+                        <p className="truncate text-xs text-muted-foreground mt-0.5">
+                          {search ? <Highlight text={session.description} query={search} /> : session.description}
+                        </p>
+                      )}
                     </TableCell>
 
                     <TableCell className="whitespace-nowrap font-medium text-primary">
@@ -268,7 +266,7 @@ export default function SessionsTable() {
                           {session.focus_score}%
                         </span>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
 
@@ -284,7 +282,7 @@ export default function SessionsTable() {
                           PR
                         </a>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
 

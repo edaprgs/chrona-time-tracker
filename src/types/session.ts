@@ -7,7 +7,7 @@ export interface Session {
   description: string | null;
   github_pr: string | null;
   pr_status: PrStatus;
-  duration_minutes: number | string; // Supabase returns numeric columns as strings — always use Number()
+  duration_minutes: number | string; // Supabase returns numeric columns as strings - always use Number()
   date: string;
   start_time: string | null;
   end_time: string | null;
