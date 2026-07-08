@@ -91,7 +91,7 @@ function formatTime(totalSeconds: number) {
 
 export default function Timer() {
   const { workspaceName, dailyTargetHours, weeklyHourCap, mealBreakMaxMinutes } = useWorkspace();
-  const { weeklyHoursRaw } = useStats();
+  const { weeklyHoursRaw, todayHoursRaw } = useStats();
   const { toast } = useToast();
   const [mounted, setMounted]         = useState(false);
   const [timerState, setTimerState]   = useState<TimerState>(loadState);
@@ -117,18 +117,19 @@ export default function Timer() {
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
   }, [timerState]);
 
-  // Soft daily cap notification — timer keeps running, user decides when to stop
+  // Soft daily cap notification — counts already-logged sessions today + current session
   useEffect(() => {
     if (!timerState.isRunning || dailyCapNotifiedRef.current) return;
     const capSeconds = dailyTargetHours * 3600;
-    if (capSeconds > 0 && displaySeconds >= capSeconds) {
+    const alreadyTodaySeconds = todayHoursRaw * 3600;
+    if (capSeconds > 0 && alreadyTodaySeconds + displaySeconds >= capSeconds) {
       dailyCapNotifiedRef.current = true;
       toast(
-        `Daily target of ${dailyTargetHours}h reached. Punch out when you're ready — or keep going.`,
+        `Daily target of ${dailyTargetHours.toFixed(1)}h reached. Punch out when you're ready — or keep going.`,
         "default"
       );
     }
-  }, [displaySeconds, timerState.isRunning, dailyTargetHours, toast]);
+  }, [displaySeconds, timerState.isRunning, dailyTargetHours, todayHoursRaw, toast]);
 
   // Soft weekly cap notification — same: timer keeps running
   useEffect(() => {
@@ -309,7 +310,8 @@ export default function Timer() {
   const isRecording   = timerState.isRunning && !timerState.isMealBreak;
 
   const capSeconds       = dailyTargetHours * 3600;
-  const capProgress      = capSeconds > 0 ? Math.min(1, displaySeconds / capSeconds) : 0;
+  const totalTodaySeconds = todayHoursRaw * 3600 + displaySeconds;
+  const capProgress      = capSeconds > 0 ? Math.min(1, totalTodaySeconds / capSeconds) : 0;
   const weeklyRemaining  = Math.max(0, weeklyHourCap - weeklyHoursRaw);
   const weeklyCapHit     = weeklyHourCap > 0 && weeklyHoursRaw >= weeklyHourCap;
 
@@ -440,14 +442,14 @@ export default function Timer() {
                       {pauseCount} pause{pauseCount !== 1 ? "s" : ""}
                     </span>
                   )}
-                  {mounted && capSeconds > 0 && displaySeconds > 0 && (
+                  {mounted && capSeconds > 0 && totalTodaySeconds > 0 && (
                     <span className={cn(
                       "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs",
                       capProgress >= 1 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                       : capProgress >= 0.9 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                       : "bg-muted text-muted-foreground"
                     )}>
-                      {(displaySeconds / 3600).toFixed(2)}h / {dailyTargetHours}h daily
+                      {(totalTodaySeconds / 3600).toFixed(2)}h / {dailyTargetHours.toFixed(1)}h today
                     </span>
                   )}
                   {mounted && weeklyCapHit && (

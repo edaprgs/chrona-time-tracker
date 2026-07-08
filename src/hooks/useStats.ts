@@ -99,8 +99,9 @@ export function useStats() {
   return {
     loading,
     todayHours:       todayHours.toFixed(1),
+    todayHoursRaw:    todayMinutes / 60,
     weeklyHours:      weeklyHours.toFixed(1),
-    weeklyHoursRaw:   weekMinutes / 60,       // raw number for cap comparisons
+    weeklyHoursRaw:   weekMinutes / 60,
     biweeklyHours:    biweeklyHours.toFixed(1),
     remainingHours:   remainingHours.toFixed(1),
     weeklyEarnings:   weeklyEarnings.toFixed(2),
