@@ -29,8 +29,10 @@ export default function SettingsPage() {
   const [paymentTermsDays, setPaymentTermsDays] = useState("15");
   const [color, setColor]                 = useState(COLORS[0]);
   const [description, setDescription]     = useState("");
-  const [workStartDay, setWorkStartDay]   = useState(1);
-  const [workEndDay, setWorkEndDay]       = useState(5);
+  const [workStartDay, setWorkStartDay]       = useState(1);
+  const [workEndDay, setWorkEndDay]           = useState(5);
+  const [mealBreakMaxMinutes, setMealBreakMaxMinutes] = useState(60);
+  const [mealBreakBillable, setMealBreakBillable]     = useState(true);
   const [saving, setSaving]               = useState(false);
   const [showNew, setShowNew]             = useState(false);
   const [apiKey, setApiKey]               = useState("");
@@ -65,6 +67,8 @@ export default function SettingsPage() {
     setDescription(active.description ?? "");
     setWorkStartDay(active.work_start_day ?? 1);
     setWorkEndDay(active.work_end_day ?? 5);
+    setMealBreakMaxMinutes(active.meal_break_max_minutes ?? 60);
+    setMealBreakBillable(active.meal_break_billable ?? true);
   }, [active]);
 
   async function handleSave(e: React.FormEvent) {
@@ -81,8 +85,10 @@ export default function SettingsPage() {
       payment_terms_days: Number(paymentTermsDays),
       color,
       description: description || null,
-      work_start_day: workStartDay,
-      work_end_day:   workEndDay,
+      work_start_day:          workStartDay,
+      work_end_day:            workEndDay,
+      meal_break_max_minutes:  mealBreakMaxMinutes,
+      meal_break_billable:     mealBreakBillable,
     });
     setSaving(false);
     toast("Workspace saved.", "success");
@@ -261,6 +267,54 @@ export default function SettingsPage() {
                 </>
               );
             })()}
+          </fieldset>
+
+          {/* Timer */}
+          <fieldset className="space-y-3 rounded-xl border p-4 md:p-5">
+            <legend className="px-1 text-base font-semibold">Timer</legend>
+            <div className="space-y-1">
+              <label className="block text-sm font-semibold text-foreground">Meal break max (minutes)</label>
+              <select
+                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+                value={mealBreakMaxMinutes}
+                onChange={(e) => setMealBreakMaxMinutes(Number(e.target.value))}
+              >
+                <option value={0}>No meal breaks</option>
+                {[30, 45, 60, 90, 120].map((m) => (
+                  <option key={m} value={m}>{m} min</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Meal break timer auto-stops when this limit is reached.
+              </p>
+            </div>
+
+            {mealBreakMaxMinutes > 0 && (
+              <div className="space-y-1">
+                <label className="block text-sm font-semibold text-foreground">Meal break billing</label>
+                <button
+                  type="button"
+                  onClick={() => setMealBreakBillable((v) => !v)}
+                  className={
+                    "flex w-full items-center justify-between rounded-lg border px-4 py-2 text-sm transition-colors " +
+                    (mealBreakBillable ? "border-border bg-muted/30" : "border-dashed border-muted-foreground/40 text-muted-foreground")
+                  }
+                >
+                  <span className="font-medium">{mealBreakBillable ? "Billable" : "Non-billable"}</span>
+                  <span className={
+                    "rounded-full px-2 py-0.5 text-xs font-medium " +
+                    (mealBreakBillable ? "bg-green-500/15 text-green-600" : "bg-muted text-muted-foreground")
+                  }>
+                    {mealBreakBillable ? "Counts toward billed hours" : "Excluded from billed hours"}
+                  </span>
+                </button>
+                <p className="text-xs text-muted-foreground">
+                  {mealBreakBillable
+                    ? "Clock keeps running during meal breaks — that time is billed."
+                    : "Meal break time is subtracted from your billed hours."}
+                </p>
+              </div>
+            )}
           </fieldset>
 
           {/* Billing */}

@@ -44,4 +44,5 @@ export interface PauseEntry {
   pausedAt: string;
   resumedAt: string | null;
   reason: string;
+  isMealBreak?: boolean; // meal breaks keep the clock running and don't reduce billed time
 }

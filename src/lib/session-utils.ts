@@ -26,9 +26,9 @@ export function splitWorkedMinutesAtMidnight(
   midnight.setDate(midnight.getDate() + 1);
   const midMs = midnight.getTime();
 
-  // Build worked intervals by subtracting pauses from [start, end]
+  // Build worked intervals by subtracting only regular pauses (meal breaks keep the clock running)
   const pauses = pauseLog
-    .filter((p) => p.resumedAt)
+    .filter((p) => p.resumedAt && !p.isMealBreak)
     .map((p) => ({ from: new Date(p.pausedAt).getTime(), to: new Date(p.resumedAt!).getTime() }));
 
   let intervals: [number, number][] = [[start.getTime(), end.getTime()]];

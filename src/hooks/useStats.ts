@@ -100,6 +100,7 @@ export function useStats() {
     loading,
     todayHours:       todayHours.toFixed(1),
     weeklyHours:      weeklyHours.toFixed(1),
+    weeklyHoursRaw:   weekMinutes / 60,       // raw number for cap comparisons
     biweeklyHours:    biweeklyHours.toFixed(1),
     remainingHours:   remainingHours.toFixed(1),
     weeklyEarnings:   weeklyEarnings.toFixed(2),

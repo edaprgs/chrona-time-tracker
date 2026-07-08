@@ -10,6 +10,8 @@ export interface WorkspaceConfig {
   payment_terms_days: number;
   work_start_day: number;
   work_end_day: number;
+  meal_break_max_minutes: number;
+  meal_break_billable: boolean;
   is_active: boolean;
   color: string;
   description: string | null;

@@ -30,7 +30,8 @@ const PR_STATUS_OPTIONS: { value: PrStatus; label: string }[] = [
 ];
 
 function calcFocusScore(durationMinutes: number, pauseLog: PauseEntry[]): number {
-  const completedPauses = pauseLog.filter((p) => p.pausedAt && p.resumedAt);
+  // Only regular pauses (not meal breaks) count against focus score
+  const completedPauses = pauseLog.filter((p) => p.pausedAt && p.resumedAt && !p.isMealBreak);
   const totalPauseMs = completedPauses.reduce((sum, p) => {
     return sum + (new Date(p.resumedAt!).getTime() - new Date(p.pausedAt).getTime());
   }, 0);

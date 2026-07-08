@@ -6,8 +6,9 @@ export const DEFAULTS = {
   INVOICE_CYCLE_DAYS: 14,
   PAYMENT_TERMS_DAYS: 15,
   WEEK_STARTS_ON:     1 as const,  // Monday (legacy, use WORK_START_DAY)
-  WORK_START_DAY:     1,           // Monday
-  WORK_END_DAY:       5,           // Friday
+  WORK_START_DAY:        1,    // Monday
+  WORK_END_DAY:          5,    // Friday
+  MEAL_BREAK_MAX_MINUTES: 60,  // warn after 60 min on meal break
   WORKSPACE_NAME:     "My Workspace",
   CONTRACTOR_NAME:    "",
   CLIENT_NAME:        "",

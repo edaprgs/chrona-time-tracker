@@ -33,6 +33,8 @@ interface WorkspaceContextValue {
   workEndDay: number;
   numWorkDays: number;
   dailyTargetHours: number;
+  mealBreakMaxMinutes: number;
+  mealBreakBillable: boolean;
 }
 
 export interface NewWorkspaceData {
@@ -160,6 +162,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         const n = s <= e ? e - s + 1 : 7 - s + e + 1;
         return cap / n;
       },
+      mealBreakMaxMinutes: active?.meal_break_max_minutes ?? DEFAULTS.MEAL_BREAK_MAX_MINUTES,
+      mealBreakBillable: active?.meal_break_billable ?? true,
     }}>
       {children}
     </WorkspaceContext.Provider>
