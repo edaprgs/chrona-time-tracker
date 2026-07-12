@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
@@ -38,6 +38,142 @@ const EMOJI_LIST = [
   "🚀","⏰","📅","💰","📊","🏆","🎉","❤️",
 ];
 
+function DraggableTaskItemView({ node, updateAttributes }: { node: { attrs: { checked: boolean } }; updateAttributes: (attrs: Record<string, unknown>) => void }) {
+  const checked = node.attrs.checked;
+  const wrapperRef = useRef<HTMLLIElement>(null);
+
+  function onDragStart(e: React.DragEvent) {
+    const li = wrapperRef.current;
+    if (!li) return;
+    li.classList.add("is-dragging");
+
+    const text = (li.querySelector("[data-node-view-content]") as HTMLElement | null)?.textContent ?? "";
+    const isDark = document.documentElement.classList.contains("dark");
+
+    // Build a completely self-contained ghost — no cloning, so CSS context never matters
+    const ghost = document.createElement("div");
+    ghost.style.cssText =
+      `position:fixed;top:-9999px;left:-9999px;` +
+      `width:${li.offsetWidth}px;height:34px;` +
+      `display:flex;align-items:center;gap:8px;flex-wrap:nowrap;` +
+      `background:${isDark ? "#2d2538" : "#ffffff"};` +
+      `border:1px solid ${isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.07)"};` +
+      `border-radius:8px;` +
+      `box-shadow:0 6px 22px rgba(0,0,0,0.13),0 2px 6px rgba(0,0,0,0.07);` +
+      `padding:0 10px;font-family:inherit;font-size:13.5px;` +
+      `color:${isDark ? "#ede9f5" : "#27202e"};pointer-events:none;`;
+
+    const cbLabel = document.createElement("label");
+    cbLabel.style.cssText = "display:inline-flex;align-items:center;flex-shrink:0;";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = checked;
+    cb.style.cssText = "width:13px;height:13px;accent-color:#e06090;pointer-events:none;";
+    cbLabel.appendChild(cb);
+    ghost.appendChild(cbLabel);
+
+    const span = document.createElement("span");
+    span.textContent = text;
+    span.style.cssText =
+      `overflow:hidden;white-space:nowrap;text-overflow:ellipsis;flex:1;` +
+      (checked ? "text-decoration:line-through;opacity:0.5;" : "");
+    ghost.appendChild(span);
+
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, Math.min(e.nativeEvent.offsetX, li.offsetWidth / 2), 17);
+    setTimeout(() => document.body.removeChild(ghost), 0);
+  }
+
+  function onDragEnd() {
+    wrapperRef.current?.classList.remove("is-dragging");
+  }
+
+  return (
+    <NodeViewWrapper
+      as="li"
+      ref={wrapperRef}
+      data-type="taskItem"
+      data-checked={String(checked)}
+      style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "nowrap" }}
+    >
+      <span
+        contentEditable={false}
+        draggable
+        data-drag-handle
+        className="task-drag-handle"
+        style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      >
+        <svg viewBox="0 0 10 16" width="8" height="12" fill="currentColor">
+          <circle cx="2.5" cy="2.5"  r="1.5" />
+          <circle cx="7.5" cy="2.5"  r="1.5" />
+          <circle cx="2.5" cy="8"    r="1.5" />
+          <circle cx="7.5" cy="8"    r="1.5" />
+          <circle cx="2.5" cy="13.5" r="1.5" />
+          <circle cx="7.5" cy="13.5" r="1.5" />
+        </svg>
+      </span>
+      <label contentEditable={false} style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+        <input type="checkbox" checked={checked} onChange={() => updateAttributes({ checked: !checked })} />
+      </label>
+      <NodeViewContent as="span" style={{ flex: 1, minWidth: 0 }} />
+    </NodeViewWrapper>
+  );
+}
+
+// Manages the sliding-gap animation during checklist drag (Google Keep style)
+function useChecklistDragGap(editor: ReturnType<typeof useEditor>) {
+  useEffect(() => {
+    if (!editor) return;
+    const root = editor.view.dom as HTMLElement;
+    let lastOver: Element | null = null;
+
+    function getItem(el: EventTarget | null): Element | null {
+      let node = el as Element | null;
+      while (node && node !== root) {
+        if ((node as HTMLElement).dataset?.type === "taskItem") return node;
+        node = node.parentElement;
+      }
+      return null;
+    }
+
+    function clearGap(el: Element | null) {
+      el?.classList.remove("drag-gap-above", "drag-gap-below");
+    }
+
+    function onDragOver(e: DragEvent) {
+      const item = getItem(e.target);
+      if (!item || item.classList.contains("is-dragging")) {
+        clearGap(lastOver);
+        lastOver = null;
+        return;
+      }
+      if (item !== lastOver) {
+        clearGap(lastOver);
+        lastOver = item;
+      }
+      const mid = item.getBoundingClientRect().top + item.getBoundingClientRect().height / 2;
+      item.classList.toggle("drag-gap-above", e.clientY < mid);
+      item.classList.toggle("drag-gap-below", e.clientY >= mid);
+    }
+
+    function onDragEnd() {
+      clearGap(lastOver);
+      lastOver = null;
+    }
+
+    root.addEventListener("dragover", onDragOver);
+    root.addEventListener("dragend", onDragEnd);
+    root.addEventListener("drop", onDragEnd);
+    return () => {
+      root.removeEventListener("dragover", onDragOver);
+      root.removeEventListener("dragend", onDragEnd);
+      root.removeEventListener("drop", onDragEnd);
+    };
+  }, [editor]);
+}
+
 interface Props {
   note: Note | null;
   open: boolean;
@@ -65,7 +201,10 @@ export default function NoteEditorDialog({ note, open, onClose, onSave, onCreate
     extensions: [
       StarterKit.configure({ codeBlock: { HTMLAttributes: { class: "" } } }),
       TaskList,
-      TaskItem.configure({ nested: true }),
+      TaskItem.extend({
+        draggable: true,
+        addNodeView() { return ReactNodeViewRenderer(DraggableTaskItemView as never); },
+      }).configure({ nested: true }),
       Link.configure({ openOnClick: true, HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" } }),
       Image.configure({ HTMLAttributes: { class: "rounded-lg max-w-full" } }),
       Placeholder.configure({ placeholder: "Take a note…" }),
@@ -75,6 +214,8 @@ export default function NoteEditorDialog({ note, open, onClose, onSave, onCreate
     },
     content: "",
   });
+
+  useChecklistDragGap(editor);
 
   // Sync state when note changes or dialog opens
   useEffect(() => {
