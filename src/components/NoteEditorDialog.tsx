@@ -117,7 +117,7 @@ function DraggableTaskItemView({ node, updateAttributes }: { node: { attrs: { ch
       <label contentEditable={false} style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
         <input type="checkbox" checked={checked} onChange={() => updateAttributes({ checked: !checked })} />
       </label>
-      <NodeViewContent as="div" style={{ flex: 1, minWidth: 0, display: "inline" }} />
+      <NodeViewContent as="span" style={{ flex: 1, minWidth: 0 }} />
     </NodeViewWrapper>
   );
 }
