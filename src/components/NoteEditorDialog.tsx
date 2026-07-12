@@ -38,7 +38,11 @@ const EMOJI_LIST = [
   "🚀","⏰","📅","💰","📊","🏆","🎉","❤️",
 ];
 
-function DraggableTaskItemView({ node, updateAttributes }: { node: { attrs: { checked: boolean } }; updateAttributes: (attrs: Record<string, unknown>) => void }) {
+function DraggableTaskItemView({ node, updateAttributes, deleteNode }: {
+  node: { attrs: { checked: boolean } };
+  updateAttributes: (attrs: Record<string, unknown>) => void;
+  deleteNode: () => void;
+}) {
   const checked = node.attrs.checked;
   const wrapperRef = useRef<HTMLLIElement>(null);
 
@@ -50,21 +54,20 @@ function DraggableTaskItemView({ node, updateAttributes }: { node: { attrs: { ch
     const text = (li.querySelector("[data-node-view-content]") as HTMLElement | null)?.textContent ?? "";
     const isDark = document.documentElement.classList.contains("dark");
 
-    // Build a completely self-contained ghost — no cloning, so CSS context never matters
     const ghost = document.createElement("div");
     ghost.style.cssText =
       `position:fixed;top:-9999px;left:-9999px;` +
-      `width:${li.offsetWidth}px;height:34px;` +
-      `display:flex;align-items:center;gap:8px;flex-wrap:nowrap;` +
+      `width:${li.offsetWidth}px;min-height:32px;` +
+      `display:flex;align-items:flex-start;gap:6px;` +
       `background:${isDark ? "#2d2538" : "#ffffff"};` +
       `border:1px solid ${isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.07)"};` +
       `border-radius:8px;` +
       `box-shadow:0 6px 22px rgba(0,0,0,0.13),0 2px 6px rgba(0,0,0,0.07);` +
-      `padding:0 10px;font-family:inherit;font-size:13.5px;` +
+      `padding:5px 10px;font-family:inherit;font-size:13.5px;` +
       `color:${isDark ? "#ede9f5" : "#27202e"};pointer-events:none;`;
 
     const cbLabel = document.createElement("label");
-    cbLabel.style.cssText = "display:inline-flex;align-items:center;flex-shrink:0;";
+    cbLabel.style.cssText = "display:inline-flex;align-items:center;flex-shrink:0;margin-top:2px;";
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.checked = checked;
@@ -75,12 +78,12 @@ function DraggableTaskItemView({ node, updateAttributes }: { node: { attrs: { ch
     const span = document.createElement("span");
     span.textContent = text;
     span.style.cssText =
-      `overflow:hidden;white-space:nowrap;text-overflow:ellipsis;flex:1;` +
+      `flex:1;min-width:0;line-height:1.5;word-break:break-word;` +
       (checked ? "text-decoration:line-through;opacity:0.5;" : "");
     ghost.appendChild(span);
 
     document.body.appendChild(ghost);
-    e.dataTransfer.setDragImage(ghost, Math.min(e.nativeEvent.offsetX, li.offsetWidth / 2), 17);
+    e.dataTransfer.setDragImage(ghost, Math.min(e.nativeEvent.offsetX, li.offsetWidth / 2), 16);
     setTimeout(() => document.body.removeChild(ghost), 0);
   }
 
@@ -94,14 +97,14 @@ function DraggableTaskItemView({ node, updateAttributes }: { node: { attrs: { ch
       ref={wrapperRef}
       data-type="taskItem"
       data-checked={String(checked)}
-      style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "nowrap" }}
+      style={{ display: "flex", alignItems: "flex-start", gap: "6px", padding: "2px 0" }}
     >
       <span
         contentEditable={false}
         draggable
         data-drag-handle
         className="task-drag-handle"
-        style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}
+        style={{ display: "inline-flex", alignItems: "center", flexShrink: 0, marginTop: "2px" }}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
       >
@@ -114,10 +117,24 @@ function DraggableTaskItemView({ node, updateAttributes }: { node: { attrs: { ch
           <circle cx="7.5" cy="13.5" r="1.5" />
         </svg>
       </span>
-      <label contentEditable={false} style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+      <label
+        contentEditable={false}
+        style={{ display: "inline-flex", alignItems: "center", flexShrink: 0, marginTop: "2px" }}
+      >
         <input type="checkbox" checked={checked} onChange={() => updateAttributes({ checked: !checked })} />
       </label>
-      <NodeViewContent as="div" style={{ flex: 1, minWidth: 0, display: "inline" }} />
+      <NodeViewContent as="div" style={{ flex: 1, minWidth: 0, lineHeight: "1.5", wordBreak: "break-word" }} />
+      <button
+        contentEditable={false}
+        onMouseDown={(e) => { e.preventDefault(); deleteNode(); }}
+        className="task-delete-btn"
+        style={{ display: "inline-flex", alignItems: "center", flexShrink: 0, marginTop: "2px" }}
+        aria-label="Delete item"
+      >
+        <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+          <path d="M3 3l8 8M11 3l-8 8" />
+        </svg>
+      </button>
     </NodeViewWrapper>
   );
 }

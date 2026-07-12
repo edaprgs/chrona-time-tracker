@@ -153,25 +153,32 @@
 .tiptap-content ol { list-style: decimal; padding-left: 1.25rem; margin: 0.25rem 0; }
 .tiptap-content li { margin: 0.1rem 0; }
 .tiptap-content ul[data-type="taskList"] { list-style: none; padding-left: 0; }
-.tiptap-content ul[data-type="taskList"] li { display: flex; align-items: center; gap: 0.5rem; }
+.tiptap-content ul[data-type="taskList"] li { display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid oklch(0.72 0.13 350 / 0.18); }
+.tiptap-content ul[data-type="taskList"] li:last-child { border-bottom: none; }
 .tiptap-content ul[data-type="taskList"] li > label { display: flex; align-items: center; }
 .tiptap-content ul[data-type="taskList"] li > label input[type="checkbox"] { width: 0.9rem; height: 0.9rem; accent-color: hsl(var(--primary)); cursor: pointer; }
 .tiptap-content ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; opacity: 0.6; }
-.task-drag-handle { display: inline-flex; align-items: center; opacity: 0; cursor: grab; color: hsl(var(--muted-foreground)); padding: 0 2px; margin-top: 0.15rem; flex-shrink: 0; transition: opacity 0.15s; user-select: none; }
+.task-drag-handle { display: inline-flex; align-items: center; opacity: 0; cursor: grab; color: hsl(var(--muted-foreground)); padding: 0 2px; flex-shrink: 0; transition: opacity 0.15s; user-select: none; }
 .task-drag-handle:active { cursor: grabbing; }
 li:hover > .task-drag-handle { opacity: 0.4; }
 li:hover > .task-drag-handle:hover { opacity: 0.8; }
+.task-delete-btn { opacity: 0; cursor: pointer; color: hsl(var(--muted-foreground)); padding: 2px; border-radius: 4px; transition: opacity 0.15s, color 0.1s; background: transparent; border: none; }
+li:hover .task-delete-btn { opacity: 0.45; }
+li:hover .task-delete-btn:hover { opacity: 1; color: oklch(0.72 0.13 350); }
+li:hover .task-delete-btn:active { color: oklch(0.58 0.16 350); }
 
-/* Hide ProseMirror drop line entirely — gap animation replaces it */
-.ProseMirror-dropcursor { display: none !important; }
+/* Hide ProseMirror drop cursor — class names changed in newer prosemirror-dropcursor */
+.ProseMirror-dropcursor,
+.prosemirror-dropcursor-block,
+.prosemirror-dropcursor-inline { display: none !important; }
 
 /* Source item while dragging — ghost handles the visual, source fades out */
 li.is-dragging { opacity: 0.3; }
 
-/* Drop line indicator — border is the only reliable approach on flex rows */
+/* Drop line indicator */
 li[data-type="taskItem"] { transition: border-color 0.1s; border-top: 2px solid transparent; border-bottom: 2px solid transparent; }
-li[data-type="taskItem"].drag-gap-above { border-top-color: hsl(var(--primary) / 0.6); }
-li[data-type="taskItem"].drag-gap-below { border-bottom-color: hsl(var(--primary) / 0.6); }
+li[data-type="taskItem"].drag-gap-above { border-top-color: oklch(0.72 0.13 350 / 0.7); }
+li[data-type="taskItem"].drag-gap-below { border-bottom-color: oklch(0.72 0.13 350 / 0.7); }
 .tiptap-content blockquote { border-left: 3px solid hsl(var(--border)); padding-left: 0.75rem; color: hsl(var(--muted-foreground)); margin: 0.5rem 0; font-style: italic; }
 .tiptap-content hr { border: none; border-top: 1px solid hsl(var(--border)); margin: 0.75rem 0; }
 .tiptap-content pre { background: hsl(var(--muted)); border-radius: 0.375rem; padding: 0.75rem 1rem; font-family: var(--font-geist-mono); font-size: 0.8rem; overflow-x: auto; margin: 0.5rem 0; }
